@@ -61,13 +61,18 @@ push.followTags::
 	`--no-follow-tags`.
 
 push.gpgSign::
+	Deprecated alias for 'push.sign'.
+
+push.sign
 	May be set to a boolean value, or the string 'if-asked'. A true
-	value causes all pushes to be GPG signed, as if `--signed` is
+	value causes all pushes to be signed, as if `--signed` is
 	passed to linkgit:git-push[1]. The string 'if-asked' causes
 	pushes to be signed if the server supports it, as if
 	`--signed=if-asked` is passed to 'git push'. A false value may
 	override a value from a lower-priority config file. An explicit
-	command-line flag always overrides this config option.
+	command-line flag always overrides this config option. The
+	signing format used is specified by 'signing.default' which
+	defaults to "openpgp" and uses "`gpg`" to create the signatures.
 
 push.pushOption::
 	When no `--push-option=<option>` argument is given from the

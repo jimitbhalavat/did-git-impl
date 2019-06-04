@@ -1,5 +1,7 @@
 tag.forceSignAnnotated::
-	A boolean to specify whether annotated tags created should be GPG signed.
+	A boolean to specify whether annotated tags created should be
+	cryptographically signed. The signing format is specified by
+	'signing.default' and defaults to "openpgp" which uses "`gpg`".
 	If `--annotate` is specified on the command line, it takes
 	precedence over this option.
 
