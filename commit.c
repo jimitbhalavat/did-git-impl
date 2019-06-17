@@ -11,6 +11,7 @@
 #include "notes.h"
 #include "alloc.h"
 #include "gpg-interface.h"
+#include "signing-interface.h"
 #include "mergesort.h"
 #include "commit-slab.h"
 #include "prio-queue.h"
@@ -954,7 +955,7 @@ static int do_sign_commit(struct strbuf *buf, const char *keyid)
 		inspos = eoh - buf->buf + 1;
 
 	if (!keyid || !*keyid)
-		keyid = get_signing_key();
+		keyid = get_signing_key(SIGNATURE_TYPE_DEFAULT);
 	if (sign_buffer(buf, &sig, keyid)) {
 		strbuf_release(&sig);
 		return -1;

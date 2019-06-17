@@ -17,6 +17,7 @@
 #include "diff.h"
 #include "revision.h"
 #include "gpg-interface.h"
+#include "signing-interface.h"
 #include "sha1-array.h"
 #include "column.h"
 #include "ref-filter.h"
@@ -127,7 +128,7 @@ static int verify_tag(const char *name, const char *ref,
 
 static int do_sign(struct strbuf *buffer)
 {
-	return sign_buffer(buffer, buffer, get_signing_key());
+	return sign_buffer(buffer, buffer, get_signing_key(SIGNATURE_TYPE_DEFAULT));
 }
 
 static const char tag_template[] =
@@ -151,7 +152,7 @@ static int git_tag_config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	status = git_gpg_config(var, value, cb);
+	status = git_signing_config(var, value, cb);
 	if (status)
 		return status;
 	if (!strcmp(var, "tag.forcesignannotated")) {
@@ -447,7 +448,7 @@ int cmd_tag(int argc, const char **argv, const char *prefix)
 
 	if (keyid) {
 		opt.sign = 1;
-		set_signing_key(keyid);
+		set_signing_key(keyid, SIGNATURE_TYPE_DEFAULT);
 	}
 	create_tag_object = (opt.sign || annotate || msg.given || msgfile);
 

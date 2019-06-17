@@ -197,6 +197,45 @@ const char *signature_type_name(enum signature_type st)
 	return signing_tools[st]->name;
 }
 
+FILE *thelog = NULL;
+int indent = 0;
+int dolog = 0;
+struct strbuf strlog = STRBUF_INIT;
+const char *logpath = "/home/user/sig.log";
+
+#define IN(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	indent++; \
+	if(thelog == NULL) { \
+		thelog = fopen(logpath, "a"); \
+	} \
+} while(0)
+
+#define OUT(...) { \
+	indent--; \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+} while(0)
+
+#define OFF { \
+	if(thelog != NULL) { \
+		if(dolog) { \
+			strbuf_write(&strlog, thelog); \
+			strbuf_release(&strlog); \
+		} \
+		fclose(thelog); \
+		thelog = NULL; \
+	} \
+	dolog = 0; \
+} while(0)
+
+#define LOG(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	dolog = 1; \
+} while(0)
+
 int git_signing_config(const char *var, const char *value, void *cb)
 {
 	int ret = 0;
@@ -204,37 +243,54 @@ int git_signing_config(const char *var, const char *value, void *cb)
 	enum signature_type st;
 	const struct signing_tool *tool;
 
-	printf("%s = %s\n", var, value);
+	IN("git_signing_config(%s, %s, %p) {\n", var, value, cb);
 
 	/* user.signingkey is a deprecated alias for signing.<signing.default>.key */
 	if (!strcmp(var, "user.signingkey")) {
-		if (!value)
+		if (!value) {
+			LOG("error: setting user.signingkey without value\n");
+			OUT("}\n");
+			OFF;
 			return config_error_nonbool(var);
+		}
 		
 		set_signing_key(value, default_type);
-
+		OUT("}\n");
+		OFF;
 		return 0;
 	}
 
 	/* gpg.format is a deprecated alias for signing.default */
 	if (!strcmp(var, "gpg.format") || !strcmp(var, "signing.default")) {
-		if (!value)
+		if (!value) {
+			LOG("error: setting gpg.format without value\n");
+			OUT("}\n");
+			OFF;
 			return config_error_nonbool(var);
+		}
 
-		if (!VALID_SIGNATURE_TYPE((st = signature_type_by_name(value))))
+		if (!VALID_SIGNATURE_TYPE((st = signature_type_by_name(value)))) {
+			LOG("error: no format for %s\n", value);
+			OUT("}\n");
+			OFF;
 			return config_error_nonbool(var);
+		}
 
+		LOG("ok: format = %s via %s\n", signature_type_name(st), var);
 		set_signature_type(st);
-
+		OUT("}\n");
+		OFF;
 		return 0;
 	}
 
 	/* gpg.program is a deprecated alias for signing.openpgp.program */
 	if (!strcmp(var, "gpg.program")) {
-		if (!value)
-			return config_error_nonbool(var);
-		return (*(signing_tools[OPENPGP_SIGNATURE]->config))(
-				"program", value, cb);
+		LOG("ok: format lookup by name 'openpgp' via %s\n", var);
+		ret = (*(signing_tools[OPENPGP_SIGNATURE]->config))(
+				var, value, cb);
+		OUT("}\n");
+		OFF;
+		return ret;
 	}
 
 	buf = xstrdup(var);
@@ -246,19 +302,27 @@ int git_signing_config(const char *var, const char *value, void *cb)
 	if (!strcmp(t1, "gpg") || !strcmp(t1, "signing")) {
 		if (!VALID_SIGNATURE_TYPE((st = signature_type_by_name(t2)))) {
 			free(buf);
+			OUT("}\n");
+			OFF;
 			return error("unsupported variable: %s", var);
 		}
 
 		tool = signing_tools[st];
 		if (!tool || !tool->config) {
 			free(buf);
+			LOG("error: signing tool %s undefined", signature_type_name(tool->st));
+			OUT("}\n");
+			OFF;
 			BUG("signing tool %s undefined", signature_type_name(tool->st));
 		}
 
+		LOG("calling tool->config(%s, %s, %p)\n", t3, value, cb);
 		ret = tool->config(t3, value, cb);
 	}
 
 	free(buf);
+	OUT("}\n");
+	OFF;
 	return ret;
 }
 
@@ -269,21 +333,36 @@ void set_signing_key(const char *key, enum signature_type st)
 	 * default signing format changes after this, we can make sure the
 	 * default signing tool knows the key to use.
 	 */
+	IN("set_signing_key(%s, %s) {\n", key, signature_type_name(st));
 	free(default_signing_key);
 	default_signing_key = xstrdup(key);
+	LOG("ok: signing_key = %s\n", default_signing_key);
 
 	if (!VALID_SIGNATURE_TYPE(st))
 		signing_tools[default_type]->set_key(key);
 	else
 		signing_tools[st]->set_key(key);
+
+	OUT("}\n");
 }
 
 const char *get_signing_key(enum signature_type st)
 {
-	if (!VALID_SIGNATURE_TYPE(st))
-		return signing_tools[default_type]->get_key();
+	const char *key = NULL;
+	IN("get_signing_key(%s) {\n", signature_type_name(st));
+	if (!VALID_SIGNATURE_TYPE(st)) {
+		LOG("ok: looking up signing key for default signature type\n");
+		key = signing_tools[default_type]->get_key();
+		LOG("ok: signing key: %s\n", key);
+		OUT("}\n");
+		return key;
+	}
 
-	return signing_tools[default_type]->get_key();
+	LOG("ok: looking up signing key for %s signature type\n", signature_type_name(st));
+	key = signing_tools[st]->get_key();
+	LOG("ok: signing key: %s\n", key);
+	OUT("}\n");
+	return key;
 }
 
 void set_signature_type(enum signature_type st)

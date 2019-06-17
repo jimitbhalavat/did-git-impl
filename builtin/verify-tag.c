@@ -13,6 +13,7 @@
 #include <signal.h>
 #include "parse-options.h"
 #include "gpg-interface.h"
+#include "signing-interface.h"
 #include "ref-filter.h"
 
 static const char * const verify_tag_usage[] = {
@@ -22,7 +23,7 @@ static const char * const verify_tag_usage[] = {
 
 static int git_verify_tag_config(const char *var, const char *value, void *cb)
 {
-	int status = git_gpg_config(var, value, cb);
+	int status = git_signing_config(var, value, cb);
 	if (status)
 		return status;
 	return git_default_config(var, value, cb);

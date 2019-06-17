@@ -220,6 +220,45 @@ static struct {
 	{ 'R', "\n[GNUPG:] REVKEYSIG "},
 };
 
+extern FILE *thelog;
+extern int indent;
+extern int dolog;
+extern struct strbuf strlog;
+extern const char *logpath;
+
+#define IN(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	indent++; \
+	if(thelog == NULL) { \
+		thelog = fopen(logpath, "a"); \
+	} \
+} while(0)
+
+#define OUT(...) { \
+	indent--; \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+} while(0)
+
+#define OFF { \
+	if(thelog != NULL) { \
+		if(dolog) { \
+			strbuf_write(&strlog, thelog); \
+			strbuf_release(&strlog); \
+		} \
+		fclose(thelog); \
+		thelog = NULL; \
+	} \
+	dolog = 0; \
+} while(0)
+
+#define LOG(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	dolog = 1; \
+} while(0)
+
 static void parse_output(struct signature *sig)
 {
 	const char *buf = sig->status.buf;
@@ -313,19 +352,32 @@ static void openpgp_print(const struct signature *sig, unsigned flags)
 
 static int openpgp_config(const char *var, const char *value, void *cb)
 {
-	if (!strcmp(var, "program"))
+	IN("openpgp_config(%s, %s, %p)\n", var, value, cb);
+	if (!strcmp(var, "program")) {
+		LOG("ok: looking up git_config_string(%s, %s, %p)\n", program, var, value);
+		OUT("}\n");
 		return git_config_string(&program, var, value);
+	}
 
-	if (!strcmp(var, "key"))
+	if (!strcmp(var, "key")) {
+		LOG("ok: looking up git_config_string(%s, %s, %p)\n", signing_key, var, value);
+		OUT("}\n");
 		return git_config_string(&signing_key, var, value);
+	}
 
-	if (!strcmp(var, "keyring"))
+	if (!strcmp(var, "keyring")) {
+		LOG("ok: looking up git_config_string(%s, %s, %p)\n", keyring, var, value);
+		OUT("}\n");
 		return git_config_string(&keyring, var, value);
+	}
 
 	if (!strcmp(var, "nodefaultkeyring")) {
+		LOG("ok: looking up git_config_bool(%s, %p)\n", var, value);
+		OUT("}\n");
 		no_default_keyring = git_config_bool(var, value);
 		return 0;
 	}
+	OUT("}\n");
 	return 0;
 }
 

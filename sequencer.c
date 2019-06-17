@@ -32,6 +32,7 @@
 #include "alias.h"
 #include "commit-reach.h"
 #include "rebase-interactive.h"
+#include "signing-interface.h"
 
 #define GIT_REFLOG_ACTION "GIT_REFLOG_ACTION"
 
@@ -197,7 +198,7 @@ static int git_sequencer_config(const char *k, const char *v, void *cb)
 		return 0;
 	}
 
-	status = git_gpg_config(k, v, NULL);
+	status = git_signing_config(k, v, NULL);
 	if (status)
 		return status;
 

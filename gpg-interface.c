@@ -6,7 +6,7 @@
 #include "sigchain.h"
 #include "tempfile.h"
 
-static char *configured_signing_key;
+/*static char *configured_signing_key;*/
 struct gpg_format {
 	const char *name;
 	const char *program;
@@ -45,6 +45,7 @@ static struct gpg_format gpg_format[] = {
 
 static struct gpg_format *use_format = &gpg_format[0];
 
+/*
 static struct gpg_format *get_format_by_name(const char *str)
 {
 	int i;
@@ -54,6 +55,7 @@ static struct gpg_format *get_format_by_name(const char *str)
 			return gpg_format + i;
 	return NULL;
 }
+*/
 
 static struct gpg_format *get_format_by_sig(const char *sig)
 {
@@ -238,6 +240,7 @@ size_t parse_signature(const char *buf, size_t size)
 	return match;
 }
 
+#if 0
 static FILE *thelog = NULL;
 static int indent = 0;
 static int dolog = 0;
@@ -365,6 +368,7 @@ const char *get_signing_key(void)
 	OUT("}\n");
 	return r;
 }
+#endif
 
 int sign_buffer(struct strbuf *buffer, struct strbuf *signature, const char *signing_key)
 {
