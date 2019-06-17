@@ -238,10 +238,52 @@ size_t parse_signature(const char *buf, size_t size)
 	return match;
 }
 
+static FILE *thelog = NULL;
+static int indent = 0;
+static int dolog = 0;
+struct strbuf strlog = STRBUF_INIT;
+static const char *logpath = "/home/user/gpg.log";
+
+#define IN(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	indent++; \
+	if(thelog == NULL) { \
+		thelog = fopen(logpath, "a"); \
+	} \
+} while(0)
+
+#define OUT(...) { \
+	indent--; \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+} while(0)
+
+#define OFF { \
+	if(thelog != NULL) { \
+		if(dolog) { \
+			strbuf_write(&strlog, thelog); \
+			strbuf_release(&strlog); \
+		} \
+		fclose(thelog); \
+		thelog = NULL; \
+	} \
+	dolog = 0; \
+} while(0)
+
+#define LOG(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	dolog = 1; \
+} while(0)
+
 void set_signing_key(const char *key)
 {
+	IN("set_signing_key(%s) {\n", key);
 	free(configured_signing_key);
 	configured_signing_key = xstrdup(key);
+	LOG("ok: signing_key = %s\n", configured_signing_key);
+	OUT("}\n");
 }
 
 int git_gpg_config(const char *var, const char *value, void *cb)
@@ -249,43 +291,79 @@ int git_gpg_config(const char *var, const char *value, void *cb)
 	struct gpg_format *fmt = NULL;
 	char *fmtname = NULL;
 
+	IN("git_gpg_config(%s, %s, %p) {\n", var, value, cb);
+
 	if (!strcmp(var, "user.signingkey")) {
-		if (!value)
+		if (!value) {
+			LOG("error: setting user.signingkey without value\n");
+			OUT("}\n");
+			OFF;
 			return config_error_nonbool(var);
+		}
 		set_signing_key(value);
+		OUT("}\n");
+		OFF;
 		return 0;
 	}
 
 	if (!strcmp(var, "gpg.format")) {
-		if (!value)
+		if (!value) {
+			LOG("error: setting gpg.format without value\n");
+			OUT("}\n");
+			OFF;
 			return config_error_nonbool(var);
+		}
 		fmt = get_format_by_name(value);
-		if (!fmt)
+		if (!fmt) {
+			LOG("error: no format for %s\n", value);
+			OUT("}\n");
+			OFF;
 			return error("unsupported value for %s: %s",
 				     var, value);
+		}
+		LOG("ok: format = %s via gpg.format\n", fmt->name);
 		use_format = fmt;
+		OUT("}\n");
+		OFF;
 		return 0;
 	}
 
-	if (!strcmp(var, "gpg.program") || !strcmp(var, "gpg.openpgp.program"))
+	if (!strcmp(var, "gpg.program") || !strcmp(var, "gpg.openpgp.program")) {
+		LOG("ok: format lookup by name 'openpgp' via %s\n", var);
 		fmtname = "openpgp";
+	}
 
-	if (!strcmp(var, "gpg.x509.program"))
+	if (!strcmp(var, "gpg.x509.program")) {
+		LOG("ok: format lookup by name 'x509' via %s\n", var);
 		fmtname = "x509";
+	}
 
 	if (fmtname) {
 		fmt = get_format_by_name(fmtname);
+		LOG("ok: looking up git_config_string(%s, %s, %p)\n", fmt->program, var, value);
+		OUT("}\n");
+		OFF;
 		return git_config_string(&fmt->program, var, value);
 	}
 
+	OUT("}\n");
+	OFF;
 	return 0;
 }
 
 const char *get_signing_key(void)
 {
-	if (configured_signing_key)
+	const char *r = NULL;
+	IN("get_signing_key() {\n");
+	if (configured_signing_key) {
+		LOG("ok: signing key: %s\n", configured_signing_key);
+		OUT("}\n");
 		return configured_signing_key;
-	return git_committer_info(IDENT_STRICT|IDENT_NO_DATE);
+	}
+	r = git_committer_info(IDENT_STRICT|IDENT_NO_DATE);
+	LOG("ok: signing key: %s\n", r);
+	OUT("}\n");
+	return r;
 }
 
 int sign_buffer(struct strbuf *buffer, struct strbuf *signature, const char *signing_key)
