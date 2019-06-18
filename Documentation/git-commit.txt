@@ -331,14 +331,17 @@ changes to tracked files.
 	default commit message.
 
 -S[<keyid>]::
---gpg-sign[=<keyid>]::
-	GPG-sign commits. The `keyid` argument is optional and
-	defaults to the committer identity; if specified, it must be
-	stuck to the option without a space.
+--sign[=<keyid>]::
+--gpg-sign[=<keyid>] (deprecated)::
+	Sign commits. The `keyid` argument is optional and defaults
+	to the committer identity; if specified, it must be stuck to
+	the option without a space.
 
---no-gpg-sign::
-	Countermand `commit.gpgSign` configuration variable that is
-	set to force each and every commit to be signed.
+--no-sign::
+--no-gpg-sign (depecrated)::
+	Countermand both `commit.sign` and deprecated `commit.gpgSign`
+	configuration variables that are set to force each and every
+	commit to be signed.
 
 \--::
 	Do not interpret any more arguments as options.

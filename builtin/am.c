@@ -34,6 +34,7 @@
 #include "string-list.h"
 #include "packfile.h"
 #include "repository.h"
+#include "signing-interface.h"
 
 /**
  * Returns the length of the first line of msg.
@@ -2145,7 +2146,7 @@ static int git_am_config(const char *k, const char *v, void *cb)
 {
 	int status;
 
-	status = git_gpg_config(k, v, NULL);
+	status = git_signing_config(k, v, NULL);
 	if (status)
 		return status;
 

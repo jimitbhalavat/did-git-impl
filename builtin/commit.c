@@ -30,6 +30,7 @@
 #include "quote.h"
 #include "submodule.h"
 #include "gpg-interface.h"
+#include "signing-interface.h"
 #include "column.h"
 #include "sequencer.h"
 #include "mailmap.h"
@@ -1437,7 +1438,7 @@ static int git_commit_config(const char *k, const char *v, void *cb)
 		return 0;
 	}
 
-	status = git_gpg_config(k, v, NULL);
+	status = git_signing_config(k, v, NULL);
 	if (status)
 		return status;
 	return git_status_config(k, v, s);
