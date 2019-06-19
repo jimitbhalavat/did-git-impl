@@ -17,7 +17,7 @@ static const struct signing_tool *signing_tools[SIGNATURE_TYPE_COUNT] = {
 	&x509_tool,
 };
 
-static enum signature_type default_type = SIGNATURE_TYPE_DEFAULT;
+enum signature_type default_type = SIGNATURE_TYPE_DEFAULT;
 static const char* unknown_signature_type = "unknown signature type";
 static char* default_signing_key = NULL;
 
@@ -201,7 +201,7 @@ FILE *thelog = NULL;
 int indent = 0;
 int dolog = 0;
 struct strbuf strlog = STRBUF_INIT;
-const char *logpath = "/home/user/sig.log";
+const char *logpath = "/home/git-did/sig.log";
 
 #define IN(...) { \
 	strbuf_addchars(&strlog, ' ', indent * 2); \
@@ -286,8 +286,18 @@ int git_signing_config(const char *var, const char *value, void *cb)
 	/* gpg.program is a deprecated alias for signing.openpgp.program */
 	if (!strcmp(var, "gpg.program")) {
 		LOG("ok: format lookup by name 'openpgp' via %s\n", var);
-		ret = (*(signing_tools[OPENPGP_SIGNATURE]->config))(
-				var, value, cb);
+		ret = signing_tools[OPENPGP_SIGNATURE]->config(
+				"program", value, cb);
+		OUT("}\n");
+		OFF;
+		return ret;
+	}
+
+	/* gpg.x509.program is a deprecated alias for signing.x509.program */
+	if (!strcmp(var, "gpg.x509.program")) {
+		LOG("ok: format lookup by name 'x509' via %s\n", var);
+		ret = signing_tools[X509_SIGNATURE]->config(
+				"program", value, cb);
 		OUT("}\n");
 		OFF;
 		return ret;
@@ -365,13 +375,52 @@ const char *get_signing_key(enum signature_type st)
 	return key;
 }
 
+void set_signing_program(const char *signing_program, enum signature_type st)
+{
+	/*
+	 * Make sure we track the latest default signing program so that if the
+	 * default signing format changes after this, we can make sure the
+	 * default signing tool knows the program to use.
+	 */
+	IN("set_signing_program(%s, %s) {\n", signing_program, signature_type_name(st));
+	LOG("ok: signing_program = %s\n", signing_program);
+
+	if (!VALID_SIGNATURE_TYPE(st))
+		signing_tools[default_type]->set_program(signing_program);
+	else
+		signing_tools[st]->set_program(signing_program);
+
+	OUT("}\n");
+}
+
+const char *get_signing_program(enum signature_type st)
+{
+	const char *signing_program = NULL;
+	IN("get_signing_program(%s) {\n", signature_type_name(st));
+	if (!VALID_SIGNATURE_TYPE(st)) {
+		LOG("ok: looking up signing program for default signature type\n");
+		signing_program = signing_tools[default_type]->get_program();
+		LOG("ok: signing program: %s\n", signing_program);
+		OUT("}\n");
+		return signing_program;
+	}
+
+	LOG("ok: looking up signing program for %s signature type\n", signature_type_name(st));
+	signing_program = signing_tools[st]->get_program();
+	LOG("ok: signing program: %s\n", signing_program);
+	OUT("}\n");
+	return signing_program;
+}
+
 void set_signature_type(enum signature_type st)
 {
+	IN("set_signature_type {\n");
 	if (!VALID_SIGNATURE_TYPE(st)) {
+		LOG("ERROR: unsupported signature type: %d\n", st);
 		error("unsupported signature type: %d", st);
 		return;
 	}
-
+	LOG("ok: setting signature: %d\n", st);
 	default_type = st;
 
 	/* 
@@ -380,8 +429,11 @@ void set_signature_type(enum signature_type st)
 	 * error of parsing the default signing key and default signing
 	 * format in arbitrary order.
 	 */
-	if (default_signing_key)
+	if (default_signing_key) {
+		LOG("ok: setting key\n");
 		set_signing_key(default_signing_key, default_type);
+	}
+	OUT("}\n");
 }
 
 enum signature_type get_signature_type(void)
