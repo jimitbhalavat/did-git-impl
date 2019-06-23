@@ -44,9 +44,9 @@ static struct gpg_format gpg_format[] = {
 	},
 };
 
+/*
 static struct gpg_format *use_format = &gpg_format[0];
 
-/*
 static struct gpg_format *get_format_by_name(const char *str)
 {
 	int i;

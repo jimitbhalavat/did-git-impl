@@ -955,7 +955,6 @@ static int do_sign_commit(struct strbuf *buf, const char *keyid)
 		inspos = eoh - buf->buf + 1;
 
 	if (!keyid || !*keyid) {
-		extern enum signature_type default_type;
 		keyid = get_signing_key(default_type);
 	}
 	if (sign_buffer(buf, &sig, keyid)) {

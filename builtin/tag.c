@@ -449,7 +449,6 @@ int cmd_tag(int argc, const char **argv, const char *prefix)
 
 	if (keyid) {
 		opt.sign = 1;
-		extern enum signature_type default_type;
 		set_signing_key(keyid, default_type);
 	}
 	create_tag_object = (opt.sign || annotate || msg.given || msgfile);
