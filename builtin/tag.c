@@ -128,7 +128,8 @@ static int verify_tag(const char *name, const char *ref,
 
 static int do_sign(struct strbuf *buffer)
 {
-	return sign_buffer(buffer, buffer, get_signing_key(SIGNATURE_TYPE_DEFAULT));
+	extern enum signature_type default_type;
+	return sign_buffer(buffer, buffer, get_signing_key(default_type));
 }
 
 static const char tag_template[] =
@@ -448,7 +449,8 @@ int cmd_tag(int argc, const char **argv, const char *prefix)
 
 	if (keyid) {
 		opt.sign = 1;
-		set_signing_key(keyid, SIGNATURE_TYPE_DEFAULT);
+		extern enum signature_type default_type;
+		set_signing_key(keyid, default_type);
 	}
 	create_tag_object = (opt.sign || annotate || msg.given || msgfile);
 

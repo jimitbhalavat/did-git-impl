@@ -17,6 +17,7 @@ enum signature_type {
 	SIGNATURE_TYPE_DEFAULT = OPENPGP_SIGNATURE,
 	SIGNATURE_TYPE_UNKNOWN = -1
 };
+enum signature_type default_type;
 
 #define VALID_SIGNATURE_TYPE(x) \
 	((x >= SIGNATURE_TYPE_FIRST) && (x < SIGNATURE_TYPE_LAST))
@@ -107,6 +108,8 @@ const char *signature_type_name(enum signature_type st);
 int git_signing_config(const char *var, const char *value, void *cb);
 void set_signing_key(const char *key, enum signature_type st);
 const char *get_signing_key(enum signature_type st);
+void set_signing_program(const char *program, enum signature_type st);
+const char *get_signing_program(enum signature_type st);
 void set_signature_type(enum signature_type st);
 enum signature_type get_signature_type(void);
 

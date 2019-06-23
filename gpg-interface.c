@@ -5,6 +5,7 @@
 #include "gpg-interface.h"
 #include "sigchain.h"
 #include "tempfile.h"
+#include "signing-interface.h"
 
 /*static char *configured_signing_key;*/
 struct gpg_format {
@@ -372,13 +373,21 @@ const char *get_signing_key(void)
 
 int sign_buffer(struct strbuf *buffer, struct strbuf *signature, const char *signing_key)
 {
+	/* Update gpg program */
+	extern enum signature_type default_type;
+	const char *signing_program = xstrdup(get_signing_program(default_type));
+
+	/* For debugging to be removed*/
+	//printf("Program: %s\n", s_program);
+	//printf("Signing key: %s\n", signing_key);
+	
 	struct child_process gpg = CHILD_PROCESS_INIT;
 	int ret;
 	size_t i, j, bottom;
 	struct strbuf gpg_status = STRBUF_INIT;
 
 	argv_array_pushl(&gpg.args,
-			 use_format->program,
+			 signing_program,
 			 "--status-fd=2",
 			 "-bsau", signing_key,
 			 NULL);
@@ -393,6 +402,9 @@ int sign_buffer(struct strbuf *buffer, struct strbuf *signature, const char *sig
 	ret = pipe_command(&gpg, buffer->buf, buffer->len,
 			   signature, 1024, &gpg_status, 0);
 	sigchain_pop(SIGPIPE);
+
+	/* For debugging to be removed */
+	//printf("Output:\n %s\n", gpg_status.buf);
 
 	ret |= !strstr(gpg_status.buf, "\n[GNUPG:] SIG_CREATED ");
 	strbuf_release(&gpg_status);

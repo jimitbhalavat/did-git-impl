@@ -270,7 +270,8 @@ static int generate_push_cert(struct strbuf *req_buf,
 {
 	const struct ref *ref;
 	struct string_list_item *item;
-	char *signing_key = xstrdup(get_signing_key(SIGNATURE_TYPE_DEFAULT));
+	extern enum signature_type default_type;
+	char *signing_key = xstrdup(get_signing_key(default_type));
 	const char *cp, *np;
 	struct strbuf cert = STRBUF_INIT;
 	int update_seen = 0;

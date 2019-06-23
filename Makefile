@@ -265,10 +265,6 @@ all::
 #
 # Define NO_DEFLATE_BOUND if your zlib does not have deflateBound.
 #
-# Define NO_R_TO_GCC_LINKER if your gcc does not like "-R/path/lib"
-# that tells runtime paths to dynamic libraries;
-# "-Wl,-rpath=/path/lib" is used instead.
-#
 # Define NO_NORETURN if using buggy versions of gcc 4.6+ and profile feedback,
 # as the compiler can crash (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=49299)
 #
@@ -624,8 +620,6 @@ SCRIPT_SH += git-web--browse.sh
 
 SCRIPT_LIB += git-mergetool--lib
 SCRIPT_LIB += git-parse-remote
-SCRIPT_LIB += git-rebase--am
-SCRIPT_LIB += git-rebase--common
 SCRIPT_LIB += git-rebase--preserve-merges
 SCRIPT_LIB += git-sh-setup
 SCRIPT_LIB += git-sh-i18n
@@ -1163,6 +1157,7 @@ endif
 # which'll override these defaults.
 CFLAGS = -g -O2 -Wall
 LDFLAGS =
+CC_LD_DYNPATH = -Wl,-rpath,
 BASIC_CFLAGS = -I.
 BASIC_LDFLAGS =
 
@@ -1291,16 +1286,6 @@ ifeq ($(uname_S),Darwin)
 	endif
 	NO_REGEX = YesPlease
 	PTHREAD_LIBS =
-endif
-
-ifndef CC_LD_DYNPATH
-	ifdef NO_R_TO_GCC_LINKER
-		# Some gcc does not accept and pass -R to the linker to specify
-		# the runtime dynamic library path.
-		CC_LD_DYNPATH = -Wl,-rpath,
-	else
-		CC_LD_DYNPATH = -R
-	endif
 endif
 
 ifdef NO_LIBGEN_H

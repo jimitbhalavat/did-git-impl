@@ -508,7 +508,7 @@ int cmd_rebase__interactive(int argc, const char **argv, const char *prefix)
 	if (argc == 1)
 		usage_with_options(builtin_rebase_interactive_usage, options);
 
-	argc = parse_options(argc, argv, NULL, options,
+	argc = parse_options(argc, argv, prefix, options,
 			builtin_rebase_interactive_usage, PARSE_OPT_KEEP_ARGV0);
 
 	if (!is_null_oid(&squash_onto))
@@ -1153,10 +1153,6 @@ static int run_specific_rebase(struct rebase_options *opts, enum action action)
 	}
 
 	switch (opts->type) {
-	case REBASE_AM:
-		backend = "git-rebase--am";
-		backend_func = "git_rebase__am";
-		break;
 	case REBASE_PRESERVE_MERGES:
 		backend = "git-rebase--preserve-merges";
 		backend_func = "git_rebase__preserve_merges";
@@ -1167,8 +1163,7 @@ static int run_specific_rebase(struct rebase_options *opts, enum action action)
 	}
 
 	strbuf_addf(&script_snippet,
-		    ". git-sh-setup && . git-rebase--common &&"
-		    " . %s && %s", backend, backend_func);
+		    ". git-sh-setup && . %s && %s", backend, backend_func);
 	argv[0] = script_snippet.buf;
 
 	status = run_command_v_opt(argv, RUN_USING_SHELL);

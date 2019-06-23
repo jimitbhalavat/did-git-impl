@@ -17,6 +17,8 @@ static void openpgp_print(const struct signature *sig, unsigned flags);
 static int openpgp_config(const char *, const char *, void *);
 static void openpgp_set_key(const char *);
 static const char *openpgp_get_key(void);
+static void openpgp_set_program(const char *);
+static const char *openpgp_get_program(void);
 
 const struct signing_tool openpgp_tool = {
 	.st = OPENPGP_SIGNATURE,
@@ -27,7 +29,9 @@ const struct signing_tool openpgp_tool = {
 	.print = &openpgp_print,
 	.config = &openpgp_config,
 	.set_key = &openpgp_set_key,
-	.get_key = &openpgp_get_key
+	.get_key = &openpgp_get_key,
+	.set_program = &openpgp_set_program,
+	.get_program = &openpgp_get_program
 };
 
 static const char *program = "gpg";
@@ -391,6 +395,20 @@ static const char *openpgp_get_key(void)
 {
 	if (signing_key)
 		return signing_key;
+	return git_committer_info(IDENT_STRICT|IDENT_NO_DATE);
+}
+
+static void openpgp_set_program(const char *signing_program)
+{
+	free((void*)program);
+	program = xstrdup(signing_program);
+}
+
+
+static const char *openpgp_get_program(void)
+{
+	if (program)
+		return program;
 	return git_committer_info(IDENT_STRICT|IDENT_NO_DATE);
 }
 

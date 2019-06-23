@@ -17,6 +17,8 @@ static void x509_print(const struct signature *sig, unsigned flags);
 static int x509_config(const char *, const char *, void *);
 static void x509_set_key(const char *);
 static const char *x509_get_key(void);
+static void x509_set_program(const char *);
+static const char *x509_get_program(void);
 
 const struct signing_tool x509_tool = {
 	.st = X509_SIGNATURE,
@@ -27,7 +29,9 @@ const struct signing_tool x509_tool = {
 	.print = &x509_print,
 	.config = &x509_config,
 	.set_key = &x509_set_key,
-	.get_key = &x509_get_key
+	.get_key = &x509_get_key,
+	.set_program = &x509_set_program,
+	.get_program = &x509_get_program
 };
 
 static const char *program = "gpgsm";
@@ -265,6 +269,45 @@ static int x509_verify(const char *payload, size_t size,
 	return !!ret;
 }
 
+extern FILE *thelog;
+extern int indent;
+extern int dolog;
+extern struct strbuf strlog;
+extern const char *logpath;
+
+#define IN(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	indent++; \
+	if(thelog == NULL) { \
+		thelog = fopen(logpath, "a"); \
+	} \
+} while(0)
+
+#define OUT(...) { \
+	indent--; \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+} while(0)
+
+#define OFF { \
+	if(thelog != NULL) { \
+		if(dolog) { \
+			strbuf_write(&strlog, thelog); \
+			strbuf_release(&strlog); \
+		} \
+		fclose(thelog); \
+		thelog = NULL; \
+	} \
+	dolog = 0; \
+} while(0)
+
+#define LOG(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	dolog = 1; \
+} while(0)
+
 static void x509_print(const struct signature *sig, unsigned flags)
 {
 	if (flags & OUTPUT_RAW)
@@ -275,11 +318,18 @@ static void x509_print(const struct signature *sig, unsigned flags)
 
 static int x509_config(const char *var, const char *value, void *cb)
 {
-	if (!strcmp(var, "program"))
+	IN("x509_config(%s, %s, %p)\n", var, value, cb);
+	if (!strcmp(var, "program")) {
+		LOG("ok: looking up git_config_string(%s, %s, %p)\n", program, var, value);
+		OUT("}\n");
 		return git_config_string(&program, var, value);
+	}
 
-	if (!strcmp(var, "key"))
+	if (!strcmp(var, "key")) {
+		LOG("ok: looking up git_config_string(%s, %s, %p)\n", signing_key, var, value);
+		OUT("}\n");
 		return git_config_string(&signing_key, var, value);
+	}
 
 	return 0;
 }
@@ -297,3 +347,15 @@ static const char *x509_get_key(void)
 	return git_committer_info(IDENT_STRICT|IDENT_NO_DATE);
 }
 
+static void x509_set_program(const char *signing_program)
+{
+	free((void*)program);
+	program = xstrdup(signing_program);
+}
+
+static const char *x509_get_program(void)
+{
+	if (program)
+		return program;
+	return git_committer_info(IDENT_STRICT|IDENT_NO_DATE);
+}
