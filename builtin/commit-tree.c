@@ -11,7 +11,6 @@
 #include "tree.h"
 #include "builtin.h"
 #include "utf8.h"
-#include "gpg-interface.h"
 #include "signing-interface.h"
 #include "parse-options.h"
 

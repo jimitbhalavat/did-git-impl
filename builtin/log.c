@@ -28,7 +28,6 @@
 #include "streaming.h"
 #include "version.h"
 #include "mailmap.h"
-#include "gpg-interface.h"
 #include "signing-interface.h"
 #include "progress.h"
 #include "commit-slab.h"

@@ -29,7 +29,6 @@
 #include "unpack-trees.h"
 #include "quote.h"
 #include "submodule.h"
-#include "gpg-interface.h"
 #include "signing-interface.h"
 #include "column.h"
 #include "sequencer.h"

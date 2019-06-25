@@ -10,7 +10,7 @@
 #include "string-list.h"
 #include "branch.h"
 #include "fmt-merge-msg.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 #include "repository.h"
 #include "commit-reach.h"
 

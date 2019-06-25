@@ -45,6 +45,45 @@ static struct regex_pattern pattern = {
 	"^-----END SIGNED MESSAGE-----\n"
 };
 
+extern FILE *thelog;
+extern int indent;
+extern int dolog;
+extern struct strbuf strlog;
+extern const char *logpath;
+
+#define IN(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	indent++; \
+	if(thelog == NULL) { \
+		thelog = fopen(logpath, "a"); \
+	} \
+} while(0)
+
+#define OUT(...) { \
+	indent--; \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+} while(0)
+
+#define OFF { \
+	if(thelog != NULL) { \
+		if(dolog) { \
+			strbuf_write(&strlog, thelog); \
+			strbuf_release(&strlog); \
+		} \
+		fclose(thelog); \
+		thelog = NULL; \
+	} \
+	dolog = 0; \
+} while(0)
+
+#define LOG(...) { \
+	strbuf_addchars(&strlog, ' ', indent * 2); \
+	strbuf_addf(&strlog, __VA_ARGS__); \
+	dolog = 1; \
+} while(0)
+
 static int x509_sign(const char *payload, size_t size,
 		struct signature **sig, const char *key)
 {
@@ -60,7 +99,7 @@ static int x509_sign(const char *payload, size_t size,
 	 */
 	if (sig) {
 		psig = *sig;
-		psig = xmalloc(sizeof(struct signature));
+		//psig = xmalloc(sizeof(struct signature));
 		strbuf_init(&(psig->sig), 0);
 		strbuf_init(&(psig->output), 0);
 		strbuf_init(&(psig->status), 0);
@@ -121,14 +160,15 @@ static size_t x509_parse(const char *payload, size_t size,
 	int ret;
 	regex_t rbegin;
 	regex_t rend;
-	regmatch_t match;
+	regmatch_t bmatch;
+	regmatch_t ematch;
 	size_t begin, end;
 	struct signature *psig;
 	static char errbuf[1024];
 
 	if (size == 0)
 		return size;
-
+	IN("x509_parse() {\n");
 	/*
 	 * Find the first x509 signature in the payload and copy it into the
 	 * signature struct.
@@ -136,22 +176,35 @@ static size_t x509_parse(const char *payload, size_t size,
 	if ((ret = regcomp(&rbegin, pattern.begin, REG_EXTENDED|REG_NEWLINE))) {
 		regerror(ret, &rbegin, errbuf, 1024);
 		BUG("Failed to compile regex: %s\n", errbuf);
+		LOG("Failed to compile regex !\n");
+		OUT("}\n");
+		OFF;
 		return size;
 	}
 	if ((ret = regcomp(&rend, pattern.end, REG_EXTENDED|REG_NEWLINE))) {
 		regerror(ret, &rend, errbuf, 1024);
 		BUG("Failed to compile regex: %s\n", errbuf);
+		LOG("Failed to compile regex !\n");
+		OUT("}\n");
+		OFF;
 		return size;
 	}
 
 	begin = end = 0;
-	if (regexec(&rbegin, payload, 1, &match, 0) ||
-		regexec(&rend, payload, 1, &match, 0)) {
+	if (regexec(&rbegin, payload, 1, &bmatch, 0) ||
+		regexec(&rend, payload, 1, &ematch, 0)) {
 		begin = size;
+		LOG("No match found !\n");
+	}
+	if (begin == size)
+	{
+		LOG("Going to next ...\n");
 		goto next;
 	}
-	begin = match.rm_so;
-	end = match.rm_eo;
+
+	begin = bmatch.rm_so;
+	end = ematch.rm_eo;
+	LOG("Regex matched at %ld of %ld and ends at %ld\n", begin, size, end);
 
 	/*
 	 * Create the signature.
@@ -167,59 +220,123 @@ static size_t x509_parse(const char *payload, size_t size,
 		psig->result = 0;
 		psig->signer = NULL;
 		psig->key = NULL;
+		LOG("Signature created !\n");
 	}
 
 	next:
 		regfree(&rbegin);
 		regfree(&rend);
-
+	LOG("Exiting x509 parse and returning %ld\n", begin);
+	OUT("}\n");
+	OFF;
 	return begin;
 }
+
+/* An exclusive status -- only one of them can appear in output */
+#define GPG_STATUS_EXCLUSIVE	(1<<0)
+/* The status includes key identifier */
+#define GPG_STATUS_KEYID	(1<<1)
+/* The status includes user identifier */
+#define GPG_STATUS_UID		(1<<2)
+/* The status includes key fingerprints */
+#define GPG_STATUS_FINGERPRINT	(1<<3)
+
+/* Short-hand for standard exclusive *SIG status with keyid & UID */
+#define GPG_STATUS_STDSIG	(GPG_STATUS_EXCLUSIVE|GPG_STATUS_KEYID|GPG_STATUS_UID)
 
 static struct {
 	char result;
 	const char *check;
+	unsigned int flags;
 } sigcheck_gpg_status[] = {
-	{ 'G', "\n[GNUPG:] GOODSIG " },
-	{ 'B', "\n[GNUPG:] BADSIG " },
-	{ 'U', "\n[GNUPG:] TRUST_NEVER" },
-	{ 'U', "\n[GNUPG:] TRUST_UNDEFINED" },
-	{ 'E', "\n[GNUPG:] ERRSIG "},
-	{ 'X', "\n[GNUPG:] EXPSIG "},
-	{ 'Y', "\n[GNUPG:] EXPKEYSIG "},
-	{ 'R', "\n[GNUPG:] REVKEYSIG "},
+	{ 'G', "GOODSIG ", GPG_STATUS_STDSIG },
+	{ 'B', "BADSIG ", GPG_STATUS_STDSIG },
+	{ 'U', "TRUST_NEVER", 0 },
+	{ 'U', "TRUST_UNDEFINED", 0 },
+	{ 'E', "ERRSIG ", GPG_STATUS_EXCLUSIVE|GPG_STATUS_KEYID },
+	{ 'X', "EXPSIG ", GPG_STATUS_STDSIG },
+	{ 'Y', "EXPKEYSIG ", GPG_STATUS_STDSIG },
+	{ 'R', "REVKEYSIG ", GPG_STATUS_STDSIG },
+	{ 0, "VALIDSIG ", GPG_STATUS_FINGERPRINT },
 };
 
-static void parse_output(struct signature *sig)
+static void parse_output(struct signature *sigc)
 {
-	const char *buf = sig->status.buf;
-	int i;
+	const char *buf = sigc->status.buf;
+	const char *line, *next;
+	int i, j;
+	int seen_exclusive_status = 0;
 
-	/* Iterate over all search strings */
-	for (i = 0; i < ARRAY_SIZE(sigcheck_gpg_status); i++) {
-		const char *found, *next;
+	/* Iterate over all lines */
+	for (line = buf; *line; line = strchrnul(line+1, '\n')) {
+		while (*line == '\n')
+			line++;
+		/* Skip lines that don't start with GNUPG status */
+		if (!skip_prefix(line, "[GNUPG:] ", &line))
+			continue;
 
-		if (!skip_prefix(buf, sigcheck_gpg_status[i].check + 1, &found)) {
-			found = strstr(buf, sigcheck_gpg_status[i].check);
-			if (!found)
-				continue;
-			found += strlen(sigcheck_gpg_status[i].check);
-		}
-		sig->result = sigcheck_gpg_status[i].result;
+		/* Iterate over all search strings */
+		for (i = 0; i < ARRAY_SIZE(sigcheck_gpg_status); i++) {
+			if (skip_prefix(line, sigcheck_gpg_status[i].check, &line)) {
+				if (sigcheck_gpg_status[i].flags & GPG_STATUS_EXCLUSIVE) {
+					if (seen_exclusive_status++)
+						goto found_duplicate_status;
+				}
 
-		/* The trust messages are not followed by key/signer information */
-		if (sig->result != 'U') {
-			next = strchrnul(found, ' ');
-			sig->key = xmemdupz(found, next - found);
+				if (sigcheck_gpg_status[i].result)
+					sigc->result = sigcheck_gpg_status[i].result;
+				/* Do we have key information? */
+				if (sigcheck_gpg_status[i].flags & GPG_STATUS_KEYID) {
+					next = strchrnul(line, ' ');
+					free(sigc->key);
+					sigc->key = xmemdupz(line, next - line);
+					/* Do we have signer information? */
+					if (*next && (sigcheck_gpg_status[i].flags & GPG_STATUS_UID)) {
+						line = next + 1;
+						next = strchrnul(line, '\n');
+						free(sigc->signer);
+						sigc->signer = xmemdupz(line, next - line);
+					}
+				}
+				/* Do we have fingerprint? */
+				if (sigcheck_gpg_status[i].flags & GPG_STATUS_FINGERPRINT) {
+					next = strchrnul(line, ' ');
+					free(sigc->fingerprint);
+					sigc->fingerprint = xmemdupz(line, next - line);
 
-			/* The ERRSIG message is not followed by signer information */
-			if (*next && sig->result != 'E') {
-				found = next + 1;
-				next = strchrnul(found, '\n');
-				sig->signer = xmemdupz(found, next - found);
+					/* Skip interim fields */
+					for (j = 9; j > 0; j--) {
+						if (!*next)
+							break;
+						line = next + 1;
+						next = strchrnul(line, ' ');
+					}
+
+					next = strchrnul(line, '\n');
+					free(sigc->primary_key_fingerprint);
+					sigc->primary_key_fingerprint = xmemdupz(line, next - line);
+				}
+
+				break;
 			}
 		}
 	}
+	return;
+
+found_duplicate_status:
+	/*
+	 * GOODSIG, BADSIG etc. can occur only once for each signature.
+	 * Therefore, if we had more than one then we're dealing with multiple
+	 * signatures.  We don't support them currently, and they're rather
+	 * hard to create, so something is likely fishy and we should reject
+	 * them altogether.
+	 */
+	sigc->result = 'E';
+	/* Clear partial data to avoid confusion */
+	FREE_AND_NULL(sigc->primary_key_fingerprint);
+	FREE_AND_NULL(sigc->fingerprint);
+	FREE_AND_NULL(sigc->signer);
+	FREE_AND_NULL(sigc->key);
 }
 
 static int x509_verify(const char *payload, size_t size,
@@ -242,7 +359,6 @@ static int x509_verify(const char *payload, size_t size,
 
 	argv_array_push(&gpgsm.args, program);
 	argv_array_pushl(&gpgsm.args,
-			"--keyid-format=long",
 			"--status-fd=1",
 			"--verify", temp->filename.buf, "-",
 			NULL);
@@ -269,51 +385,16 @@ static int x509_verify(const char *payload, size_t size,
 	return !!ret;
 }
 
-extern FILE *thelog;
-extern int indent;
-extern int dolog;
-extern struct strbuf strlog;
-extern const char *logpath;
-
-#define IN(...) { \
-	strbuf_addchars(&strlog, ' ', indent * 2); \
-	strbuf_addf(&strlog, __VA_ARGS__); \
-	indent++; \
-	if(thelog == NULL) { \
-		thelog = fopen(logpath, "a"); \
-	} \
-} while(0)
-
-#define OUT(...) { \
-	indent--; \
-	strbuf_addchars(&strlog, ' ', indent * 2); \
-	strbuf_addf(&strlog, __VA_ARGS__); \
-} while(0)
-
-#define OFF { \
-	if(thelog != NULL) { \
-		if(dolog) { \
-			strbuf_write(&strlog, thelog); \
-			strbuf_release(&strlog); \
-		} \
-		fclose(thelog); \
-		thelog = NULL; \
-	} \
-	dolog = 0; \
-} while(0)
-
-#define LOG(...) { \
-	strbuf_addchars(&strlog, ' ', indent * 2); \
-	strbuf_addf(&strlog, __VA_ARGS__); \
-	dolog = 1; \
-} while(0)
-
 static void x509_print(const struct signature *sig, unsigned flags)
 {
-	if (flags & OUTPUT_RAW)
-		write_in_full(fileno(stderr), sig->status.buf, sig->status.len);
-	else
-		write_in_full(fileno(stderr), sig->output.buf, sig->output.len);
+	const char *output = flags & OUTPUT_RAW ?
+		sig->status.buf : sig->output.buf;
+
+	if (flags & OUTPUT_VERBOSE && sig->sig.buf)
+		fputs(sig->sig.buf, stdout);
+
+	if (output)
+		fputs(output, stderr);
 }
 
 static int x509_config(const char *var, const char *value, void *cb)

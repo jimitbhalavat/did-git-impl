@@ -10,7 +10,6 @@
 #include "revision.h"
 #include "notes.h"
 #include "alloc.h"
-#include "gpg-interface.h"
 #include "signing-interface.h"
 #include "mergesort.h"
 #include "commit-slab.h"
@@ -1094,7 +1093,7 @@ free_return:
 	free(buf);
 }
 
-int check_commit_signature(const struct commit *commit, struct signature_check *sigc)
+int check_commit_signature(const struct commit *commit, struct signature *sigc)
 {
 	struct strbuf payload = STRBUF_INIT;
 	struct strbuf signature = STRBUF_INIT;
@@ -1117,7 +1116,7 @@ int check_commit_signature(const struct commit *commit, struct signature_check *
 void verify_merge_signature(struct commit *commit, int verbosity)
 {
 	char hex[GIT_MAX_HEXSZ + 1];
-	struct signature_check signature_check;
+	struct signature signature_check;
 	memset(&signature_check, 0, sizeof(signature_check));
 
 	check_commit_signature(commit, &signature_check);
@@ -1139,7 +1138,7 @@ void verify_merge_signature(struct commit *commit, int verbosity)
 		printf(_("Commit %s has a good GPG signature by %s\n"),
 		       hex, signature_check.signer);
 
-	signature_check_clear(&signature_check);
+	signature_clear(&signature_check);
 }
 
 void append_merge_tag_headers(struct commit_list *parents,

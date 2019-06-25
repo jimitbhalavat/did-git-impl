@@ -31,7 +31,6 @@
 #include "resolve-undo.h"
 #include "remote.h"
 #include "fmt-merge-msg.h"
-#include "gpg-interface.h"
 #include "signing-interface.h"
 #include "sequencer.h"
 #include "string-list.h"

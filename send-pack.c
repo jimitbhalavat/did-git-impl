@@ -13,7 +13,6 @@
 #include "transport.h"
 #include "version.h"
 #include "sha1-array.h"
-#include "gpg-interface.h"
 #include "signing-interface.h"
 #include "cache.h"
 
