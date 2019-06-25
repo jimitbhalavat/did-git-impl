@@ -10,7 +10,7 @@
 #include "notes.h"
 #include "color.h"
 #include "reflog-walk.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 #include "trailer.h"
 
 static char *user_format;
@@ -771,7 +771,7 @@ struct format_commit_context {
 	const struct pretty_print_context *pretty_ctx;
 	unsigned commit_header_parsed:1;
 	unsigned commit_message_parsed:1;
-	struct signature_check signature_check;
+	struct signature signature_check;
 	enum flush_type flush_type;
 	enum trunc_type truncate;
 	const char *message;
@@ -1292,8 +1292,8 @@ static size_t format_commit_one(struct strbuf *sb, /* in UTF-8 */
 			check_commit_signature(c->commit, &(c->signature_check));
 		switch (placeholder[1]) {
 		case 'G':
-			if (c->signature_check.gpg_output)
-				strbuf_addstr(sb, c->signature_check.gpg_output);
+			if (c->signature_check.output.buf)
+				strbuf_addstr(sb, c->signature_check.output.buf);
 			break;
 		case '?':
 			switch (c->signature_check.result) {

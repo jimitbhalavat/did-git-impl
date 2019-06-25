@@ -47,183 +47,6 @@ static struct regex_pattern patterns[2] = {
 	{ "^-----BEGIN PGP MESSAGE-----\n", "-----END PGP MESSAGE-----\n" }
 };
 
-static int openpgp_sign(const char *payload, size_t size,
-		struct signature **sig, const char *key)
-{
-	struct child_process gpg = CHILD_PROCESS_INIT;
-	struct signature *psig;
-	struct strbuf *psignature, *pstatus;
-	int ret;
-	size_t i, j;
-	const char *skey = (!key || !*key) ? signing_key : key;
-
-	/*
-	 * Create the signature.
-	 */
-	if (sig) {
-		psig = *sig;
-		psig = xmalloc(sizeof(struct signature));
-		strbuf_init(&(psig->sig), 0);
-		strbuf_init(&(psig->output), 0);
-		strbuf_init(&(psig->status), 0);
-		psig->st = OPENPGP_SIGNATURE;
-		psig->result = 0;
-		psig->signer = NULL;
-		psig->key = NULL;
-		psignature = &(psig->sig);
-		pstatus = &(psig->status);
-	} else {
-		psignature = NULL;
-		pstatus = NULL;
-	}
-
-	argv_array_pushl(&gpg.args,
-			program,
-			"--status-fd=2",
-			"-bsau", skey,
-			NULL);
-
-	/*
-	 * When the username signingkey is bad, program could be terminated
-	 * because gpg exits without reading and then write gets SIGPIPE.
-	 */
-	sigchain_push(SIGPIPE, SIG_IGN);
-	ret = pipe_command(&gpg, payload, size,
-			psignature, 1024, pstatus, 0);
-	sigchain_pop(SIGPIPE);
-
-	if (!sig)
-		return !!ret;
-
-	/* Check for success status from gpg */
-	ret |= !strstr(pstatus->buf, "\n[GNUPG:] SIG_CREATED ");
-	if (ret)
-		return error(_("gpg failed to sign the data"));
-
-	/* Mark the signature as good */
-	psig->result = 'G';
-
-	/* Strip CR from the line endings, in case we are on Windows. */
-	for (i = j = 0; i < psig->sig.len; i++)
-		if (psig->sig.buf[i] != '\r') {
-			if (i != j)
-				psig->sig.buf[j] = psig->sig.buf[i];
-			j++;
-		}
-	strbuf_setlen(&(psig->sig), j);
-
-	/* Store the key we used */
-	psig->key = xstrdup(skey);
-
-	return 0;
-}
-
-/*
- * To get all OpenPGP signatures in a payload, repeatedly call this function
- * giving it the remainder of the payload as the payload pointer. The return
- * value is the index of the first char of the signature in the payload. If
- * no signature is found, size is returned.
- */
-static size_t openpgp_parse(const char *payload, size_t size,
-		struct signature **sig)
-{
-	int i, ret;
-	regex_t rbegin;
-	regex_t rend;
-	regmatch_t match;
-	size_t first, begin, end;
-	struct regex_pattern *pattern;
-	struct signature *psig;
-	static char errbuf[1024];
-
-	if (size == 0)
-		return size;
-
-	/*
-	 * Figure out if any OpenPGP signatures are in the payload and which
-	 * begin pattern matches the first signature in the payload.
-	 */
-	first = size;
-	pattern = NULL;
-	for (i = 0; i < ARRAY_SIZE(patterns); i++) {
-		if ((ret = regcomp(&rbegin, patterns[i].begin, REG_EXTENDED))) {
-			regerror(ret, &rbegin, errbuf, 1024);
-			BUG("Failed to compile regex: %s\n", errbuf);
-			return size;
-		}
-		if (!regexec(&rbegin, payload, 1, &match, 0))
-			if (match.rm_so < first) {
-				pattern = &patterns[i];
-				first = match.rm_so;
-			}
-
-		regfree(&rbegin);
-	}
-
-	if (!pattern)
-		return size;
-
-	/*
-	 * Find the first OpenPGP signature in the payload and copy it into the
-	 * signature struct.
-	 */
-	if ((ret = regcomp(&rbegin, pattern->begin, REG_EXTENDED))) {
-		regerror(ret, &rbegin, errbuf, 1024);
-		BUG("Failed to compile regex: %s\n", errbuf);
-		return size;
-	}
-	if ((ret = regcomp(&rend, pattern->end, REG_EXTENDED))) {
-		regerror(ret, &rend, errbuf, 1024);
-		BUG("Failed to compile regex: %s\n", errbuf);
-		return size;
-	}
-
-	begin = end = 0;
-	if (regexec(&rbegin, payload, 1, &match, 0) || 
-		regexec(&rend, payload, 1, &match, 0)) {
-		begin = size;
-		goto next;
-	}
-	begin = match.rm_so;
-	end = match.rm_eo;
-
-	/*
-	 * Create the signature.
-	 */
-	if (sig) {
-		psig = *sig;
-		psig = xmalloc(sizeof(struct signature));
-		strbuf_init(&(psig->sig), end - begin);
-		strbuf_add(&(psig->sig), payload + begin, end - begin);
-		strbuf_init(&(psig->output), 0);
-		strbuf_init(&(psig->status), 0);
-		psig->st = OPENPGP_SIGNATURE;
-		psig->result = 0;
-		psig->signer = NULL;
-		psig->key = NULL;
-	}
-
-	next:
-		regfree(&rbegin);
-		regfree(&rend);
-
-	return begin;
-}
-
-static struct {
-	char result;
-	const char *check;
-} sigcheck_gpg_status[] = {
-	{ 'G', "\n[GNUPG:] GOODSIG " },
-	{ 'B', "\n[GNUPG:] BADSIG " },
-	{ 'U', "\n[GNUPG:] TRUST_NEVER" },
-	{ 'U', "\n[GNUPG:] TRUST_UNDEFINED" },
-	{ 'E', "\n[GNUPG:] ERRSIG "},
-	{ 'X', "\n[GNUPG:] EXPSIG "},
-	{ 'Y', "\n[GNUPG:] EXPKEYSIG "},
-	{ 'R', "\n[GNUPG:] REVKEYSIG "},
-};
-
 extern FILE *thelog;
 extern int indent;
 extern int dolog;
@@ -263,36 +86,278 @@ extern const char *logpath;
 	dolog = 1; \
 } while(0)
 
-static void parse_output(struct signature *sig)
+static int openpgp_sign(const char *payload, size_t size,
+		struct signature **sig, const char *key)
 {
-	const char *buf = sig->status.buf;
-	int i;
+	struct child_process gpg = CHILD_PROCESS_INIT;
+	struct signature *psig;
+	struct strbuf *psignature, *pstatus;
+	int ret;
+	size_t i, j;
+	const char *skey = (!key || !*key) ? signing_key : key;
+	IN("openpgp_sign() {\n");
+	/*
+	 * Create the signature.
+	 */
+	if (sig) {
+		LOG("creating sig ...\n");
+		psig = *sig;
+		//psig = xmalloc(sizeof(struct signature));
+		strbuf_init(&(psig->sig), 0);
+		strbuf_init(&(psig->output), 0);
+		strbuf_init(&(psig->status), 0);
+		psig->st = OPENPGP_SIGNATURE;
+		psig->result = 0;
+		psig->signer = NULL;
+		psig->key = NULL;
+		psignature = &(psig->sig);
+		pstatus = &(psig->status);
+		LOG("created sig !\n");
+	} else {
+		LOG("No sig passed !\n");
+		psignature = NULL;
+		pstatus = NULL;
+	}
 
-	/* Iterate over all search strings */
-	for (i = 0; i < ARRAY_SIZE(sigcheck_gpg_status); i++) {
-		const char *found, *next;
+	argv_array_pushl(&gpg.args,
+			program,
+			"--status-fd=2",
+			"-bsau", skey,
+			NULL);
 
-		if (!skip_prefix(buf, sigcheck_gpg_status[i].check + 1, &found)) {
-			found = strstr(buf, sigcheck_gpg_status[i].check);
-			if (!found)
-				continue;
-			found += strlen(sigcheck_gpg_status[i].check);
+	/*
+	 * When the username signingkey is bad, program could be terminated
+	 * because gpg exits without reading and then write gets SIGPIPE.
+	 */
+	sigchain_push(SIGPIPE, SIG_IGN);
+	ret = pipe_command(&gpg, payload, size,
+			psignature, 1024, pstatus, 0);
+	sigchain_pop(SIGPIPE);
+
+	if (!sig)
+	{
+		LOG("No signature available for use !\n");
+		OUT("}\n");
+		return !!ret;
+	}
+
+	/* Check for success status from gpg */
+	ret |= !strstr(pstatus->buf, "\n[GNUPG:] SIG_CREATED ");
+	LOG("GPG STATUS: \n%s\n", pstatus->buf);
+	if (ret)
+	{
+		LOG("gpg failed to sign data");
+		OUT("}\n");
+		return error(_("gpg failed to sign the data"));
+	}
+
+	/* Mark the signature as good */
+	psig->result = 'G';
+
+	/* Strip CR from the line endings, in case we are on Windows. */
+	for (i = j = 0; i < psig->sig.len; i++)
+		if (psig->sig.buf[i] != '\r') {
+			if (i != j)
+				psig->sig.buf[j] = psig->sig.buf[i];
+			j++;
 		}
-		sig->result = sigcheck_gpg_status[i].result;
+	strbuf_setlen(&(psig->sig), j);
 
-		/* The trust messages are not followed by key/signer information */
-		if (sig->result != 'U') {
-			next = strchrnul(found, ' ');
-			sig->key = xmemdupz(found, next - found);
+	/* Store the key we used */
+	psig->key = xstrdup(skey);
+	LOG("signed success ! Signature: \n%s\n", psig->sig.buf);
+	OUT("}\n");
+	return 0;
+}
 
-			/* The ERRSIG message is not followed by signer information */
-			if (*next && sig->result != 'E') {
-				found = next + 1;
-				next = strchrnul(found, '\n');
-				sig->signer = xmemdupz(found, next - found);
+/*
+ * To get all OpenPGP signatures in a payload, repeatedly call this function
+ * giving it the remainder of the payload as the payload pointer. The return
+ * value is the index of the first char of the signature in the payload. If
+ * no signature is found, size is returned.
+ */
+static size_t openpgp_parse(const char *payload, size_t size,
+		struct signature **sig)
+{
+	int i, ret;
+	regex_t rbegin;
+	regex_t rend;
+	regmatch_t bmatch;
+	regmatch_t ematch;
+	size_t begin, end;
+	struct regex_pattern *pattern;
+	struct signature *psig;
+	static char errbuf[1024];
+
+	if (size == 0)
+		return size;
+	IN("openpgp_parse() {\n");
+	/*
+	 * Figure out if any OpenPGP signatures are in the payload and which
+	 * begin pattern matches the first signature in the payload.
+	 */
+	for (i = 0; i < ARRAY_SIZE(patterns); i++) {
+		if ((ret = regcomp(&rbegin, patterns[i].begin, REG_EXTENDED|REG_NEWLINE))) {
+			regerror(ret, &rbegin, errbuf, 1024);
+			BUG("Failed to compile regex: %s\n", errbuf);
+			LOG("Failed to compile regex !\n");
+			OUT("}\n");
+			return size;
+		}
+		if ((ret = regcomp(&rend, patterns[i].end, REG_EXTENDED|REG_NEWLINE))) {
+			regerror(ret, &rend, errbuf, 1024);
+			BUG("Failed to compile regex: %s\n", errbuf);
+			LOG("Failed to compile regex !\n");
+			OUT("}\n");
+			return size;
+		}
+
+		begin = end = 0;
+		if (regexec(&rbegin, payload, 1, &bmatch, 0) ||
+			regexec(&rend, payload, 1, &ematch, 0)) {
+			LOG("No match found !\n");
+			begin = size;
+			continue;
+		}
+		begin = bmatch.rm_so;
+		end = ematch.rm_eo;
+		LOG("Regex matched at %ld of %ld and ends at %ld\n", begin, size, end);
+		break;
+	}
+	if (begin == size)
+	{
+		LOG("Going to next ...\n");
+		goto next;
+	}
+	/*
+	 * Create the signature.
+	 */
+	if (sig) {
+		psig = *sig;
+		psig = xmalloc(sizeof(struct signature));
+		strbuf_init(&(psig->sig), end - begin);
+		strbuf_add(&(psig->sig), payload + begin, end - begin);
+		strbuf_init(&(psig->output), 0);
+		strbuf_init(&(psig->status), 0);
+		psig->st = OPENPGP_SIGNATURE;
+		psig->result = 0;
+		psig->signer = NULL;
+		psig->key = NULL;
+		LOG("Signature created !\n");
+	}
+	next:
+		regfree(&rbegin);
+		regfree(&rend);
+	LOG("Exiting openpgp parse and returning %ld\n", begin);
+	OUT("}\n");
+	return begin;
+}
+
+/* An exclusive status -- only one of them can appear in output */
+#define GPG_STATUS_EXCLUSIVE	(1<<0)
+/* The status includes key identifier */
+#define GPG_STATUS_KEYID	(1<<1)
+/* The status includes user identifier */
+#define GPG_STATUS_UID		(1<<2)
+/* The status includes key fingerprints */
+#define GPG_STATUS_FINGERPRINT	(1<<3)
+
+/* Short-hand for standard exclusive *SIG status with keyid & UID */
+#define GPG_STATUS_STDSIG	(GPG_STATUS_EXCLUSIVE|GPG_STATUS_KEYID|GPG_STATUS_UID)
+
+static struct {
+	char result;
+	const char *check;
+	unsigned int flags;
+} sigcheck_gpg_status[] = {
+	{ 'G', "GOODSIG ", GPG_STATUS_STDSIG },
+	{ 'B', "BADSIG ", GPG_STATUS_STDSIG },
+	{ 'U', "TRUST_NEVER", 0 },
+	{ 'U', "TRUST_UNDEFINED", 0 },
+	{ 'E', "ERRSIG ", GPG_STATUS_EXCLUSIVE|GPG_STATUS_KEYID },
+	{ 'X', "EXPSIG ", GPG_STATUS_STDSIG },
+	{ 'Y', "EXPKEYSIG ", GPG_STATUS_STDSIG },
+	{ 'R', "REVKEYSIG ", GPG_STATUS_STDSIG },
+	{ 0, "VALIDSIG ", GPG_STATUS_FINGERPRINT },
+};
+
+static void parse_output(struct signature *sigc)
+{
+	const char *buf = sigc->status.buf;
+	const char *line, *next;
+	int i, j;
+	int seen_exclusive_status = 0;
+
+	/* Iterate over all lines */
+	for (line = buf; *line; line = strchrnul(line+1, '\n')) {
+		while (*line == '\n')
+			line++;
+		/* Skip lines that don't start with GNUPG status */
+		if (!skip_prefix(line, "[GNUPG:] ", &line))
+			continue;
+
+		/* Iterate over all search strings */
+		for (i = 0; i < ARRAY_SIZE(sigcheck_gpg_status); i++) {
+			if (skip_prefix(line, sigcheck_gpg_status[i].check, &line)) {
+				if (sigcheck_gpg_status[i].flags & GPG_STATUS_EXCLUSIVE) {
+					if (seen_exclusive_status++)
+						goto found_duplicate_status;
+				}
+
+				if (sigcheck_gpg_status[i].result)
+					sigc->result = sigcheck_gpg_status[i].result;
+				/* Do we have key information? */
+				if (sigcheck_gpg_status[i].flags & GPG_STATUS_KEYID) {
+					next = strchrnul(line, ' ');
+					free(sigc->key);
+					sigc->key = xmemdupz(line, next - line);
+					/* Do we have signer information? */
+					if (*next && (sigcheck_gpg_status[i].flags & GPG_STATUS_UID)) {
+						line = next + 1;
+						next = strchrnul(line, '\n');
+						free(sigc->signer);
+						sigc->signer = xmemdupz(line, next - line);
+					}
+				}
+				/* Do we have fingerprint? */
+				if (sigcheck_gpg_status[i].flags & GPG_STATUS_FINGERPRINT) {
+					next = strchrnul(line, ' ');
+					free(sigc->fingerprint);
+					sigc->fingerprint = xmemdupz(line, next - line);
+
+					/* Skip interim fields */
+					for (j = 9; j > 0; j--) {
+						if (!*next)
+							break;
+						line = next + 1;
+						next = strchrnul(line, ' ');
+					}
+
+					next = strchrnul(line, '\n');
+					free(sigc->primary_key_fingerprint);
+					sigc->primary_key_fingerprint = xmemdupz(line, next - line);
+				}
+
+				break;
 			}
 		}
 	}
+	return;
+
+found_duplicate_status:
+	/*
+	 * GOODSIG, BADSIG etc. can occur only once for each signature.
+	 * Therefore, if we had more than one then we're dealing with multiple
+	 * signatures.  We don't support them currently, and they're rather
+	 * hard to create, so something is likely fishy and we should reject
+	 * them altogether.
+	 */
+	sigc->result = 'E';
+	/* Clear partial data to avoid confusion */
+	FREE_AND_NULL(sigc->primary_key_fingerprint);
+	FREE_AND_NULL(sigc->fingerprint);
+	FREE_AND_NULL(sigc->signer);
+	FREE_AND_NULL(sigc->key);
 }
 
 static int openpgp_verify(const char *payload, size_t size,
@@ -348,10 +413,14 @@ static int openpgp_verify(const char *payload, size_t size,
 
 static void openpgp_print(const struct signature *sig, unsigned flags)
 {
-	if (flags & OUTPUT_RAW)
-		write_in_full(fileno(stderr), sig->status.buf, sig->status.len);
-	else
-		write_in_full(fileno(stderr), sig->output.buf, sig->output.len);
+	const char *output = flags & OUTPUT_RAW ?
+		sig->status.buf : sig->output.buf;
+
+	if (flags & OUTPUT_VERBOSE && sig->sig.buf)
+		fputs(sig->sig.buf, stdout);
+
+	if (output)
+		fputs(output, stderr);
 }
 
 static int openpgp_config(const char *var, const char *value, void *cb)

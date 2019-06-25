@@ -7,6 +7,8 @@
 #include "tempfile.h"
 #include "signing-interface.h"
 
+#if 0
+
 /*static char *configured_signing_key;*/
 struct gpg_format {
 	const char *name;
@@ -44,7 +46,7 @@ static struct gpg_format gpg_format[] = {
 	},
 };
 
-/*
+
 static struct gpg_format *use_format = &gpg_format[0];
 
 static struct gpg_format *get_format_by_name(const char *str)
@@ -56,7 +58,7 @@ static struct gpg_format *get_format_by_name(const char *str)
 			return gpg_format + i;
 	return NULL;
 }
-*/
+
 
 static struct gpg_format *get_format_by_sig(const char *sig)
 {
@@ -68,17 +70,19 @@ static struct gpg_format *get_format_by_sig(const char *sig)
 				return gpg_format + i;
 	return NULL;
 }
+*/
 
-void signature_check_clear(struct signature_check *sigc)
+void signature_check_clear(struct signature *sigc)
 {
-	FREE_AND_NULL(sigc->payload);
-	FREE_AND_NULL(sigc->gpg_output);
-	FREE_AND_NULL(sigc->gpg_status);
+	FREE_AND_NULL(sigc->sig.buf);
+	FREE_AND_NULL(sigc->output.buf);
+	FREE_AND_NULL(sigc->status.buf);
 	FREE_AND_NULL(sigc->signer);
 	FREE_AND_NULL(sigc->key);
 	FREE_AND_NULL(sigc->fingerprint);
 	FREE_AND_NULL(sigc->primary_key_fingerprint);
 }
+*/
 
 /* An exclusive status -- only one of them can appear in output */
 #define GPG_STATUS_EXCLUSIVE	(1<<0)
@@ -108,9 +112,9 @@ static struct {
 	{ 0, "VALIDSIG ", GPG_STATUS_FINGERPRINT },
 };
 
-static void parse_gpg_output(struct signature_check *sigc)
+static void parse_gpg_output(struct signature *sigc)
 {
-	const char *buf = sigc->gpg_status;
+	const char *buf = sigc->status.buf;
 	const char *line, *next;
 	int i, j;
 	int seen_exclusive_status = 0;
@@ -188,7 +192,7 @@ found_duplicate_status:
 }
 
 int check_signature(const char *payload, size_t plen, const char *signature,
-	size_t slen, struct signature_check *sigc)
+	size_t slen, struct signature *sigc)
 {
 	struct strbuf gpg_output = STRBUF_INIT;
 	struct strbuf gpg_status = STRBUF_INIT;
@@ -200,9 +204,9 @@ int check_signature(const char *payload, size_t plen, const char *signature,
 				      &gpg_output, &gpg_status);
 	if (status && !gpg_output.len)
 		goto out;
-	sigc->payload = xmemdupz(payload, plen);
-	sigc->gpg_output = strbuf_detach(&gpg_output, NULL);
-	sigc->gpg_status = strbuf_detach(&gpg_status, NULL);
+	sigc->sig.buf = xmemdupz(payload, plen);
+	sigc->output.buf = strbuf_detach(&gpg_output, NULL);
+	sigc->status.buf = strbuf_detach(&gpg_status, NULL);
 	parse_gpg_output(sigc);
 	status |= sigc->result != 'G' && sigc->result != 'U';
 
@@ -213,17 +217,18 @@ int check_signature(const char *payload, size_t plen, const char *signature,
 	return !!status;
 }
 
-void print_signature_buffer(const struct signature_check *sigc, unsigned flags)
+void print_signature_buffer(const struct signature *sigc, unsigned flags)
 {
-	const char *output = flags & GPG_VERIFY_RAW ?
-		sigc->gpg_status : sigc->gpg_output;
+	const char *output = flags & OUTPUT_RAW ?
+		sigc->status.buf : sigc->output.buf;
 
-	if (flags & GPG_VERIFY_VERBOSE && sigc->payload)
-		fputs(sigc->payload, stdout);
+	if (flags & OUTPUT_VERBOSE && sigc->sig.buf)
+		fputs(sigc->sig.buf, stdout);
 
 	if (output)
 		fputs(output, stderr);
 }
+
 
 size_t parse_signature(const char *buf, size_t size)
 {
@@ -241,7 +246,7 @@ size_t parse_signature(const char *buf, size_t size)
 	return match;
 }
 
-#if 0
+
 static FILE *thelog = NULL;
 static int indent = 0;
 static int dolog = 0;
@@ -369,7 +374,7 @@ const char *get_signing_key(void)
 	OUT("}\n");
 	return r;
 }
-#endif
+
 
 int sign_buffer(struct strbuf *buffer, struct strbuf *signature, const char *signing_key)
 {
@@ -423,6 +428,7 @@ int sign_buffer(struct strbuf *buffer, struct strbuf *signature, const char *sig
 	return 0;
 }
 
+
 int verify_signed_buffer(const char *payload, size_t payload_size,
 			 const char *signature, size_t signature_size,
 			 struct strbuf *gpg_output, struct strbuf *gpg_status)
@@ -470,3 +476,4 @@ int verify_signed_buffer(const char *payload, size_t payload_size,
 
 	return ret;
 }
+#endif

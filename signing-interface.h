@@ -39,6 +39,8 @@ struct signature {
 	char result;
 	char *signer;
 	char *key;
+	char *fingerprint;
+	char *primary_key_fingerprint;
 };
 
 struct signatures {
@@ -48,8 +50,10 @@ struct signatures {
 };
 
 #define SIGNATURES_INIT  { .nsigs = 0, .alloc = 0, .sigs = NULL }
-#if 0
+#define SIGNATURE_INIT  { .sig = STRBUF_INIT, .output = STRBUF_INIT, .status = STRBUF_INIT, .st = OPENPGP_SIGNATURE, .result = '0', .signer = NULL, .key = NULL }
+
 void signatures_clear(struct signatures *sigs);
+void signature_clear(struct signature *sig);
 
 /*
  * Create a detached signature for the contents of "payload" and append
@@ -59,8 +63,10 @@ void signatures_clear(struct signatures *sigs);
  * config will be used. If no default is found, then an error is
  * returned. If the signing operation fails an error is returned.
  */
-int sign_buffer(const char *payload, size_t size, struct signatures *sigs,
+int sign_payload(const char *payload, size_t size, struct signatures *sigs,
 		enum signature_type st, const char *signing_key);
+
+int sign_buffer(struct strbuf *buffer, struct strbuf *signature, const char *signing_key);
 
 /* 
  * Look at the signed content (e.g. a signed tag object), whose payload
@@ -71,6 +77,7 @@ int sign_buffer(const char *payload, size_t size, struct signatures *sigs,
  */
 size_t parse_signatures(const char *payload, size_t size,
 		struct signatures *sigs);
+size_t parse_signature(const char *buf, size_t size);
 
 /*
  * Run the signature verification tools to see if the payload matches
@@ -79,8 +86,16 @@ size_t parse_signatures(const char *payload, size_t size,
  * parse_signatures or sign_buffer to initialize the signatures struct
  * before calling this function.
  */
-int verify_signed_buffer(const char *payload, size_t size,
-		const struct signatures *sigs);
+
+int verify_buffer_signatures(const char *payload, size_t size,
+		struct signatures *sigs);
+
+int verify_signed_buffer(const char *payload, size_t payload_size,
+			 const char *signature, size_t signature_size,
+			 struct strbuf *output, struct strbuf *status);
+
+int check_signature(const char *payload, size_t plen, const char *signature,
+	size_t slen, struct signature *sigc);
 
 /*
  * Prints the results of either signing or verifying the payload in the
@@ -90,13 +105,13 @@ int verify_signed_buffer(const char *payload, size_t size,
  * otherwise, the nice results from the tool is printed to stderr.
  */
 void print_signatures(const struct signatures *sigs, unsigned flags);
+void print_signature_buffer(const struct signature *sigc, unsigned flags);
 
 /*
  * Appends each of the detached signatures to the end of the strbuf
  * passed in. Returns the number of signatures appended to the buffer.
  */
 size_t strbuf_append_signatures(struct strbuf *buf, const struct signatures *sigs);
-#endif
 
 /*
  * Translate the name of the signature tool into the enumerated value

@@ -5,14 +5,14 @@
 #include "tree.h"
 #include "blob.h"
 #include "alloc.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 #include "packfile.h"
 
 const char *tag_type = "tag";
 
 static int run_gpg_verify(const char *buf, unsigned long size, unsigned flags)
 {
-	struct signature_check sigc;
+	struct signature sigc;
 	size_t payload_size;
 	int ret;
 
@@ -21,7 +21,7 @@ static int run_gpg_verify(const char *buf, unsigned long size, unsigned flags)
 	payload_size = parse_signature(buf, size);
 
 	if (size == payload_size) {
-		if (flags & GPG_VERIFY_VERBOSE)
+		if (flags & OUTPUT_VERBOSE)
 			write_in_full(1, buf, payload_size);
 		return error("no signature found");
 	}
@@ -29,10 +29,10 @@ static int run_gpg_verify(const char *buf, unsigned long size, unsigned flags)
 	ret = check_signature(buf, payload_size, buf + payload_size,
 				size - payload_size, &sigc);
 
-	if (!(flags & GPG_VERIFY_OMIT_STATUS))
+	if (!(flags & OUTPUT_OMIT_STATUS))
 		print_signature_buffer(&sigc, flags);
 
-	signature_check_clear(&sigc);
+	signature_clear(&sigc);
 	return ret;
 }
 

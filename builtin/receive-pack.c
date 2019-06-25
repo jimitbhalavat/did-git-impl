@@ -19,7 +19,7 @@
 #include "argv-array.h"
 #include "version.h"
 #include "tag.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 #include "sigchain.h"
 #include "fsck.h"
 #include "tmp-objdir.h"
@@ -73,7 +73,7 @@ static int shallow_update;
 static const char *alt_shallow_file;
 static struct strbuf push_cert = STRBUF_INIT;
 static struct object_id push_cert_oid;
-static struct signature_check sigcheck;
+static struct signature sigcheck;
 static const char *push_cert_nonce;
 static const char *cert_nonce_seed;
 
