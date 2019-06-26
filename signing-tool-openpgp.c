@@ -185,7 +185,6 @@ static size_t openpgp_parse(const char *payload, size_t size,
 	regmatch_t bmatch;
 	regmatch_t ematch;
 	size_t begin, end;
-	struct regex_pattern *pattern;
 	struct signature *psig;
 	static char errbuf[1024];
 

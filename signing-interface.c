@@ -194,12 +194,13 @@ size_t parse_signatures(const char *payload, size_t size,
 
 size_t parse_signature(const char *buf, size_t size)
 {
+	size_t match;
+	struct signatures sigs = SIGNATURES_INIT;
+
 	if ( !buf || !size )
 		return size;
 	IN("parse_signature() {\n");
-	struct signatures sigs = SIGNATURES_INIT;
-
-	size_t match = parse_signatures(buf, size, &sigs);
+	match = parse_signatures(buf, size, &sigs);
 	LOG("signature parsed: %ld of %ld\n", match, size);
 	OUT("}\n");
 	OFF;
@@ -234,21 +235,22 @@ int verify_signed_buffer(const char *payload, size_t payload_size,
 			 const char *signature, size_t signature_size,
 			 struct strbuf *output, struct strbuf *status)
 {
-	if ( !payload || !signature )
-		return error("invalid payload or signature sent !");
-
+	int ret;
+	enum signature_type st;
 	struct signature sig = SIGNATURE_INIT;
 	struct signatures sigs = SIGNATURES_INIT;
+
+	if ( !payload || !signature )
+		return error("invalid payload or signature sent !");
 
 	strbuf_addstr(&(sig.sig), signature);
 	add_signature(&sigs, &sig);
 
-	int ret = verify_buffer_signatures(payload, payload_size, &sigs);
+	ret = verify_buffer_signatures(payload, payload_size, &sigs);
 
 	/*  Some how gpg.format is not sometimes applied, temporary fix to loop and STs */
 	if (ret)
 	{
-		enum signature_type st;
 		for (st = SIGNATURE_TYPE_FIRST; st < SIGNATURE_TYPE_LAST; st++)
 		{
 			sig.st = st;
@@ -269,12 +271,13 @@ int verify_signed_buffer(const char *payload, size_t payload_size,
 int check_signature(const char *payload, size_t plen, const char *signature,
 	size_t slen, struct signature *sigc)
 {
-	if (!payload || !signature || !sigc)
-		BUG("invalid payload or signature sent !");
-
+	int status;
+	enum signature_type st;
 	struct signatures sigs = SIGNATURES_INIT;
 	struct signature sig = SIGNATURE_INIT;
-	int status;
+	
+	if (!payload || !signature || !sigc)
+		BUG("invalid payload or signature sent !");
 
 	strbuf_addstr(&(sig.sig), signature);
 	sig.result = 'N';
@@ -287,7 +290,6 @@ int check_signature(const char *payload, size_t plen, const char *signature,
 	/*  Some how gpg.format is not sometimes applied, temporary fix to loop and STs */
 	if (status)
 	{
-		enum signature_type st;
 		for (st = SIGNATURE_TYPE_FIRST; st < SIGNATURE_TYPE_LAST; st++)
 		{
 			sig.st = st;
