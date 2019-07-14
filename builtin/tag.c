@@ -116,7 +116,7 @@ static int verify_tag(const char *name, const char *ref,
 	if (format->format)
 		flags = OUTPUT_OMIT_STATUS;
 
-	if (gpg_verify_tag(oid, name, flags))
+	if (sig_verify_tag(oid, name, flags))
 		return -1;
 
 	if (format->format)
@@ -408,7 +408,7 @@ int cmd_tag(int argc, const char **argv, const char *prefix)
 		  N_("tag message"), PARSE_OPT_NONEG, parse_msg_arg },
 		OPT_FILENAME('F', "file", &msgfile, N_("read message from file")),
 		OPT_BOOL('e', "edit", &edit_flag, N_("force edit of tag message")),
-		OPT_BOOL('s', "sign", &opt.sign, N_("annotated and GPG-signed tag")),
+		OPT_BOOL('s', "sign", &opt.sign, N_("annotated and signed tag")),
 		OPT_CLEANUP(&cleanup_arg),
 		OPT_STRING('u', "local-user", &keyid, N_("key-id"),
 					N_("use another key to sign the tag")),

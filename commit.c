@@ -937,8 +937,8 @@ cleanup_return:
 	return ret;
 }
 
-static const char gpg_sig_header[] = "gpgsig";
-static const int gpg_sig_header_len = sizeof(gpg_sig_header) - 1;
+static const char sig_header[] = "gpgsig";
+static const int sig_header_len = sizeof(sig_header) - 1;
 
 static int do_sign_commit(struct strbuf *buf, const char *keyid)
 {
@@ -967,8 +967,8 @@ static int do_sign_commit(struct strbuf *buf, const char *keyid)
 		int len = (eol - bol) + !!*eol;
 
 		if (!copypos) {
-			strbuf_insert(buf, inspos, gpg_sig_header, gpg_sig_header_len);
-			inspos += gpg_sig_header_len;
+			strbuf_insert(buf, inspos, sig_header, sig_header_len);
+			inspos += sig_header_len;
 		}
 		strbuf_insert(buf, inspos++, " ", 1);
 		strbuf_insert(buf, inspos, bol, len);
@@ -999,9 +999,9 @@ int parse_signed_commit(const struct commit *commit,
 		next = next ? next + 1 : tail;
 		if (in_signature && line[0] == ' ')
 			sig = line + 1;
-		else if (starts_with(line, gpg_sig_header) &&
-			 line[gpg_sig_header_len] == ' ')
-			sig = line + gpg_sig_header_len + 1;
+		else if (starts_with(line, sig_header) &&
+			 line[sig_header_len] == ' ')
+			sig = line + sig_header_len + 1;
 		if (sig) {
 			strbuf_add(signature, sig, next - sig);
 			saw_signature = 1;
@@ -1033,8 +1033,8 @@ int remove_signature(struct strbuf *buf)
 
 		if (in_signature && line[0] == ' ')
 			sig_end = next;
-		else if (starts_with(line, gpg_sig_header) &&
-			 line[gpg_sig_header_len] == ' ') {
+		else if (starts_with(line, sig_header) &&
+			 line[sig_header_len] == ' ') {
 			sig_start = line;
 			sig_end = next;
 			in_signature = 1;
@@ -1126,16 +1126,16 @@ void verify_merge_signature(struct commit *commit, int verbosity)
 	case 'G':
 		break;
 	case 'U':
-		die(_("Commit %s has an untrusted GPG signature, "
+		die(_("Commit %s has an untrusted signature, "
 		      "allegedly by %s."), hex, signature_check.signer);
 	case 'B':
-		die(_("Commit %s has a bad GPG signature "
+		die(_("Commit %s has a bad signature "
 		      "allegedly by %s."), hex, signature_check.signer);
 	default: /* 'N' */
-		die(_("Commit %s does not have a GPG signature."), hex);
+		die(_("Commit %s does not have a signature."), hex);
 	}
 	if (verbosity >= 0 && signature_check.result == 'G')
-		printf(_("Commit %s has a good GPG signature by %s\n"),
+		printf(_("Commit %s has a good signature by %s\n"),
 		       hex, signature_check.signer);
 
 	signature_clear(&signature_check);

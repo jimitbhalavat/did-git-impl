@@ -443,7 +443,7 @@ int git_signing_config(const char *var, const char *value, void *cb)
 	}
 
 	/* gpg.program is a deprecated alias for signing.openpgp.program */
-	if (!strcmp(var, "gpg.program")) {
+	if (!strcmp(var, "gpg.program") || !strcmp(var, "signing.openpgp.program")) {
 		LOG("ok: format lookup by name 'openpgp' via %s\n", var);
 		ret = signing_tools[OPENPGP_SIGNATURE]->config(
 				"program", value, cb);
@@ -453,7 +453,7 @@ int git_signing_config(const char *var, const char *value, void *cb)
 	}
 
 	/* gpg.x509.program is a deprecated alias for signing.x509.program */
-	if (!strcmp(var, "gpg.x509.program")) {
+	if (!strcmp(var, "gpg.x509.program") || !strcmp(var, "signing.x509.program")) {
 		LOG("ok: format lookup by name 'x509' via %s\n", var);
 		ret = signing_tools[X509_SIGNATURE]->config(
 				"program", value, cb);

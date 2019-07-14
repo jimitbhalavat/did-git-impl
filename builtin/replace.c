@@ -464,7 +464,7 @@ static int create_graft(int argc, const char **argv, int force, int gentle)
 	}
 
 	if (remove_signature(&buf)) {
-		warning(_("the original commit '%s' has a gpg signature"), old_ref);
+		warning(_("the original commit '%s' has a signature"), old_ref);
 		warning(_("the signature will be removed in the replacement commit!"));
 	}
 

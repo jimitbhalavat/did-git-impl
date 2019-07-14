@@ -505,7 +505,7 @@ static void fmt_merge_msg_sigs(struct strbuf *out)
 			; /* merely annotated */
 		else if (verify_signed_buffer(buf, len, buf + len, size - len, &sig, NULL)) {
 			if (!sig.len)
-				strbuf_addstr(&sig, "gpg verification failed.\n");
+				strbuf_addstr(&sig, "sig verification failed.\n");
 		}
 
 		if (!tag_number++) {

@@ -113,8 +113,8 @@ static int run_sequencer(int argc, const char **argv, struct replay_opts *opts)
 		OPT_STRING(0, "strategy", &opts->strategy, N_("strategy"), N_("merge strategy")),
 		OPT_CALLBACK('X', "strategy-option", &opts, N_("option"),
 			N_("option for merge strategy"), option_parse_x),
-		{ OPTION_STRING, 'S', "gpg-sign", &opts->gpg_sign, N_("key-id"),
-		  N_("GPG sign commit"), PARSE_OPT_OPTARG, NULL, (intptr_t) "" },
+		{ OPTION_STRING, 'S', "gpg-sign", &opts->sign, N_("key-id"),
+		  N_("sign commit"), PARSE_OPT_OPTARG, NULL, (intptr_t) "" },
 		OPT_END()
 	};
 	struct option *options = base_options;
@@ -197,7 +197,7 @@ static int run_sequencer(int argc, const char **argv, struct replay_opts *opts)
 		usage_with_options(usage_str, options);
 
 	/* These option values will be free()d */
-	opts->gpg_sign = xstrdup_or_null(opts->gpg_sign);
+	opts->sign = xstrdup_or_null(opts->sign);
 	opts->strategy = xstrdup_or_null(opts->strategy);
 
 	if (cmd == 'q') {
