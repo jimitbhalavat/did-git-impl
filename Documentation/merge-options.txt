@@ -56,8 +56,9 @@ set to `no` at the beginning of them.
 	resolved as a fast-forward.
 
 -S[<keyid>]::
---gpg-sign[=<keyid>]::
-	GPG-sign the resulting merge commit. The `keyid` argument is
+--sign[=<keyid>]::
+--gpg-sign[=<keyid>] (deprecated)::
+	Sign the resulting merge commit. The `keyid` argument is
 	optional and defaults to the committer identity; if specified,
 	it must be stuck to the option without a space.
 

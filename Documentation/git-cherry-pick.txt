@@ -110,10 +110,11 @@ effect to your index in a row.
 	See the signoff option in linkgit:git-commit[1] for more information.
 
 -S[<keyid>]::
---gpg-sign[=<keyid>]::
-	GPG-sign commits. The `keyid` argument is optional and
-	defaults to the committer identity; if specified, it must be
-	stuck to the option without a space.
+--sign[=<keyid>]::
+--gpg-sign[=<keyid>] (deprecated)::
+	Sign commits. The `keyid` argument is optional and defaults to
+	the committer identity; if specified, it must be stuck to the
+	option without a space.
 
 --ff::
 	If the current HEAD is the same as the parent of the
