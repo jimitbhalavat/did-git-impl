@@ -448,7 +448,7 @@ static void show_signature(struct rev_info *opt, struct commit *commit)
 {
 	struct strbuf payload = STRBUF_INIT;
 	struct strbuf signature = STRBUF_INIT;
-	struct strbuf gpg_output = STRBUF_INIT;
+	struct strbuf sig_output = STRBUF_INIT;
 	int status;
 
 	if (parse_signed_commit(commit, &payload, &signature) <= 0)
@@ -456,14 +456,14 @@ static void show_signature(struct rev_info *opt, struct commit *commit)
 
 	status = verify_signed_buffer(payload.buf, payload.len,
 				      signature.buf, signature.len,
-				      &gpg_output, NULL);
-	if (status && !gpg_output.len)
-		strbuf_addstr(&gpg_output, "No signature\n");
+				      &sig_output, NULL);
+	if (status && !sig_output.len)
+		strbuf_addstr(&sig_output, "No signature\n");
 
-	show_sig_lines(opt, status, gpg_output.buf);
+	show_sig_lines(opt, status, sig_output.buf);
 
  out:
-	strbuf_release(&gpg_output);
+	strbuf_release(&sig_output);
 	strbuf_release(&payload);
 	strbuf_release(&signature);
 }
@@ -497,7 +497,7 @@ static int show_one_mergetag(struct commit *commit,
 	struct tag *tag;
 	struct strbuf verify_message;
 	int status, nth;
-	size_t payload_size, gpg_message_offset;
+	size_t payload_size, sig_message_offset;
 
 	hash_object_file(extra->value, extra->len, type_name(OBJ_TAG), &oid);
 	tag = lookup_tag(the_repository, &oid);
@@ -518,7 +518,7 @@ static int show_one_mergetag(struct commit *commit,
 	else
 		strbuf_addf(&verify_message,
 			    "parent #%d, tagged '%s'\n", nth + 1, tag->tag);
-	gpg_message_offset = verify_message.len;
+	sig_message_offset = verify_message.len;
 
 	payload_size = parse_signature(extra->value, extra->len);
 	status = -1;
@@ -529,7 +529,7 @@ static int show_one_mergetag(struct commit *commit,
 					  extra->len - payload_size,
 					  &verify_message, NULL))
 			status = 0; /* good */
-		else if (verify_message.len <= gpg_message_offset)
+		else if (verify_message.len <= sig_message_offset)
 			strbuf_addstr(&verify_message, "No signature\n");
 		/* otherwise we couldn't verify, which is shown as bad */
 	}

@@ -147,7 +147,7 @@ static GIT_PATH_FUNC(rebase_path_refs_to_delete, "rebase-merge/refs-to-delete")
  * The following files are written by git-rebase just after parsing the
  * command-line.
  */
-static GIT_PATH_FUNC(rebase_path_gpg_sign_opt, "rebase-merge/gpg_sign_opt")
+static GIT_PATH_FUNC(rebase_path_sign_opt, "rebase-merge/sign_opt")
 static GIT_PATH_FUNC(rebase_path_orig_head, "rebase-merge/orig-head")
 static GIT_PATH_FUNC(rebase_path_verbose, "rebase-merge/verbose")
 static GIT_PATH_FUNC(rebase_path_quiet, "rebase-merge/quiet")
@@ -193,8 +193,8 @@ static int git_sequencer_config(const char *k, const char *v, void *cb)
 		return status;
 	}
 
-	if (!strcmp(k, "commit.gpgsign")) {
-		opts->gpg_sign = git_config_bool(k, v) ? xstrdup("") : NULL;
+	if (!strcmp(k, "commit.gpgsign") || !strcmp(k, "commit.sign")) {
+		opts->sign = git_config_bool(k, v) ? xstrdup("") : NULL;
 		return 0;
 	}
 
@@ -267,13 +267,13 @@ static int has_conforming_footer(struct strbuf *sb, struct strbuf *sob,
 	return 1;
 }
 
-static const char *gpg_sign_opt_quoted(struct replay_opts *opts)
+static const char *sign_opt_quoted(struct replay_opts *opts)
 {
 	static struct strbuf buf = STRBUF_INIT;
 
 	strbuf_reset(&buf);
-	if (opts->gpg_sign)
-		sq_quotef(&buf, "-S%s", opts->gpg_sign);
+	if (opts->sign)
+		sq_quotef(&buf, "-S%s", opts->sign);
 	return buf.buf;
 }
 
@@ -297,7 +297,7 @@ int sequencer_remove_state(struct replay_opts *opts)
 		}
 	}
 
-	free(opts->gpg_sign);
+	free(opts->sign);
 	free(opts->strategy);
 	for (i = 0; i < opts->xopts_nr; i++)
 		free(opts->xopts[i]);
@@ -980,7 +980,7 @@ static int run_git_commit(struct repository *r,
 		else
 			res = commit_tree(msg.buf, msg.len, cache_tree_oid,
 					  NULL, &root_commit, author,
-					  opts->gpg_sign);
+					  opts->sign);
 
 		strbuf_release(&msg);
 		strbuf_release(&script);
@@ -996,10 +996,10 @@ static int run_git_commit(struct repository *r,
 	cmd.git_cmd = 1;
 
 	if (is_rebase_i(opts) && read_env_script(&cmd.env_array)) {
-		const char *gpg_opt = gpg_sign_opt_quoted(opts);
+		const char *sig_opt = sign_opt_quoted(opts);
 
 		return error(_(staged_changes_advice),
-			     gpg_opt, gpg_opt);
+			     sig_opt, sig_opt);
 	}
 
 	argv_array_push(&cmd.args, "commit");
@@ -1008,8 +1008,8 @@ static int run_git_commit(struct repository *r,
 		argv_array_push(&cmd.args, "-n");
 	if ((flags & AMEND_MSG))
 		argv_array_push(&cmd.args, "--amend");
-	if (opts->gpg_sign)
-		argv_array_pushf(&cmd.args, "-S%s", opts->gpg_sign);
+	if (opts->sign)
+		argv_array_pushf(&cmd.args, "-S%s", opts->sign);
 	if (defmsg)
 		argv_array_pushl(&cmd.args, "-F", defmsg, NULL);
 	else if (!(flags & EDIT_MSG))
@@ -1390,7 +1390,7 @@ static int try_to_commit(struct repository *r,
 		return -1;
 
 	if (flags & AMEND_MSG) {
-		const char *exclude_gpgsig[] = { "gpgsig", NULL };
+		const char *exclude_sig[] = { "gpgsig", NULL };
 		const char *out_enc = get_commit_output_encoding();
 		const char *message = logmsg_reencode(current_head, NULL,
 						      out_enc);
@@ -1410,7 +1410,7 @@ static int try_to_commit(struct repository *r,
 			goto out;
 		}
 		parents = copy_commit_list(current_head->parents);
-		extra = read_commit_extra_headers(current_head, exclude_gpgsig);
+		extra = read_commit_extra_headers(current_head, exclude_sig);
 	} else if (current_head) {
 		commit_list_insert(current_head, &parents);
 	}
@@ -1459,7 +1459,7 @@ static int try_to_commit(struct repository *r,
 	reset_ident_date();
 
 	if (commit_tree_extended(msg->buf, msg->len, &tree, parents,
-				 oid, author, opts->gpg_sign, extra)) {
+				 oid, author, opts->sign, extra)) {
 		res = error(_("failed to write commit object"));
 		goto out;
 	}
@@ -2445,7 +2445,7 @@ static int populate_opts_cb(const char *key, const char *value, void *data)
 	else if (!strcmp(key, "options.strategy"))
 		git_config_string_dup(&opts->strategy, key, value);
 	else if (!strcmp(key, "options.gpg-sign"))
-		git_config_string_dup(&opts->gpg_sign, key, value);
+		git_config_string_dup(&opts->sign, key, value);
 	else if (!strcmp(key, "options.strategy-option")) {
 		ALLOC_GROW(opts->xopts, opts->xopts_nr + 1, opts->xopts_alloc);
 		opts->xopts[opts->xopts_nr++] = xstrdup(value);
@@ -2500,12 +2500,12 @@ static int read_populate_opts(struct replay_opts *opts)
 	if (is_rebase_i(opts)) {
 		struct strbuf buf = STRBUF_INIT;
 
-		if (read_oneliner(&buf, rebase_path_gpg_sign_opt(), 1)) {
+		if (read_oneliner(&buf, rebase_path_sign_opt(), 1)) {
 			if (!starts_with(buf.buf, "-S"))
 				strbuf_reset(&buf);
 			else {
-				free(opts->gpg_sign);
-				opts->gpg_sign = xstrdup(buf.buf + 2);
+				free(opts->sign);
+				opts->sign = xstrdup(buf.buf + 2);
 			}
 			strbuf_reset(&buf);
 		}
@@ -2607,8 +2607,8 @@ int write_basic_state(struct replay_opts *opts, const char *head_name,
 	else if (opts->allow_rerere_auto == RERERE_NOAUTOUPDATE)
 		write_file(rebase_path_allow_rerere_autoupdate(), "--no-rerere-autoupdate\n");
 
-	if (opts->gpg_sign)
-		write_file(rebase_path_gpg_sign_opt(), "-S%s\n", opts->gpg_sign);
+	if (opts->sign)
+		write_file(rebase_path_sign_opt(), "-S%s\n", opts->sign);
 	if (opts->signoff)
 		write_file(rebase_path_signoff(), "--signoff\n");
 	if (opts->reschedule_failed_exec)
@@ -2864,9 +2864,9 @@ static int save_opts(struct replay_opts *opts)
 	if (opts->strategy)
 		res |= git_config_set_in_file_gently(opts_file,
 					"options.strategy", opts->strategy);
-	if (opts->gpg_sign)
+	if (opts->sign)
 		res |= git_config_set_in_file_gently(opts_file,
-					"options.gpg-sign", opts->gpg_sign);
+					"options.gpg-sign", opts->sign);
 	if (opts->xopts) {
 		int i;
 		for (i = 0; i < opts->xopts_nr; i++)
@@ -2971,7 +2971,7 @@ static int error_with_patch(struct repository *r,
 			  "Once you are satisfied with your changes, run\n"
 			  "\n"
 			  "  git rebase --continue\n"),
-			gpg_sign_opt_quoted(opts));
+			sign_opt_quoted(opts));
 	} else if (exit_code) {
 		if (commit)
 			fprintf_ln(stderr, _("Could not apply %s... %.*s"),
@@ -3414,9 +3414,9 @@ static int do_merge(struct repository *r,
 		struct child_process cmd = CHILD_PROCESS_INIT;
 
 		if (read_env_script(&cmd.env_array)) {
-			const char *gpg_opt = gpg_sign_opt_quoted(opts);
+			const char *sig_opt = sign_opt_quoted(opts);
 
-			ret = error(_(staged_changes_advice), gpg_opt, gpg_opt);
+			ret = error(_(staged_changes_advice), sig_opt, sig_opt);
 			goto leave_merge;
 		}
 
@@ -3430,8 +3430,8 @@ static int do_merge(struct repository *r,
 		argv_array_push(&cmd.args, "--no-stat");
 		argv_array_push(&cmd.args, "-F");
 		argv_array_push(&cmd.args, git_path_merge_msg(r));
-		if (opts->gpg_sign)
-			argv_array_push(&cmd.args, opts->gpg_sign);
+		if (opts->sign)
+			argv_array_push(&cmd.args, opts->sign);
 
 		/* Add the tips to be merged */
 		for (j = to_merge; j; j = j->next)

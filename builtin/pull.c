@@ -109,7 +109,7 @@ static int opt_autostash = -1;
 static int config_autostash;
 static struct argv_array opt_strategies = ARGV_ARRAY_INIT;
 static struct argv_array opt_strategy_opts = ARGV_ARRAY_INIT;
-static char *opt_gpg_sign;
+static char *opt_sign;
 static int opt_allow_unrelated_histories;
 
 /* Options passed to git-fetch */
@@ -178,7 +178,7 @@ static struct option pull_options[] = {
 		N_("abort if fast-forward is not possible"),
 		PARSE_OPT_NOARG | PARSE_OPT_NONEG),
 	OPT_PASSTHRU(0, "verify-signatures", &opt_verify_signatures, NULL,
-		N_("verify that the named commit has a valid GPG signature"),
+		N_("verify that the named commit has a valid signature"),
 		PARSE_OPT_NOARG),
 	OPT_BOOL(0, "autostash", &opt_autostash,
 		N_("automatically stash/stash pop before and after rebase")),
@@ -189,8 +189,8 @@ static struct option pull_options[] = {
 		N_("option=value"),
 		N_("option for selected merge strategy"),
 		0),
-	OPT_PASSTHRU('S', "gpg-sign", &opt_gpg_sign, N_("key-id"),
-		N_("GPG sign commit"),
+	OPT_PASSTHRU('S', "gpg-sign", &opt_sign, N_("key-id"),
+		N_("Sign commit"),
 		PARSE_OPT_OPTARG),
 	OPT_SET_INT(0, "allow-unrelated-histories",
 		    &opt_allow_unrelated_histories,
@@ -656,8 +656,8 @@ static int run_merge(void)
 		argv_array_push(&args, opt_verify_signatures);
 	argv_array_pushv(&args, opt_strategies.argv);
 	argv_array_pushv(&args, opt_strategy_opts.argv);
-	if (opt_gpg_sign)
-		argv_array_push(&args, opt_gpg_sign);
+	if (opt_sign)
+		argv_array_push(&args, opt_sign);
 	if (opt_allow_unrelated_histories > 0)
 		argv_array_push(&args, "--allow-unrelated-histories");
 
@@ -843,8 +843,8 @@ static int run_rebase(const struct object_id *curr_head,
 		argv_array_push(&args, opt_diffstat);
 	argv_array_pushv(&args, opt_strategies.argv);
 	argv_array_pushv(&args, opt_strategy_opts.argv);
-	if (opt_gpg_sign)
-		argv_array_push(&args, opt_gpg_sign);
+	if (opt_sign)
+		argv_array_push(&args, opt_sign);
 	if (opt_autostash == 0)
 		argv_array_push(&args, "--no-autostash");
 	else if (opt_autostash == 1)

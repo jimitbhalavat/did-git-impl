@@ -1427,7 +1427,7 @@ static int git_commit_config(const char *k, const char *v, void *cb)
 	}
 	if (!strcmp(k, "commit.cleanup"))
 		return git_config_string(&cleanup_arg, k, v);
-	if (!strcmp(k, "commit.gpgsign")) {
+	if (!strcmp(k, "commit.gpgsign") || !strcmp(k, "commit.sign")) {
 		sign_commit = git_config_bool(k, v) ? "" : NULL;
 		return 0;
 	}
@@ -1489,7 +1489,7 @@ int cmd_commit(int argc, const char **argv, const char *prefix)
 		OPT_CLEANUP(&cleanup_arg),
 		OPT_BOOL(0, "status", &include_status, N_("include status in commit message template")),
 		{ OPTION_STRING, 'S', "gpg-sign", &sign_commit, N_("key-id"),
-		  N_("GPG sign commit"), PARSE_OPT_OPTARG, NULL, (intptr_t) "" },
+		  N_("sign commit"), PARSE_OPT_OPTARG, NULL, (intptr_t) "" },
 		/* end commit message options */
 
 		OPT_GROUP(N_("Commit contents options")),
@@ -1636,8 +1636,8 @@ int cmd_commit(int argc, const char **argv, const char *prefix)
 	}
 
 	if (amend) {
-		const char *exclude_gpgsig[2] = { "gpgsig", NULL };
-		extra = read_commit_extra_headers(current_head, exclude_gpgsig);
+		const char *exclude_sig[2] = { "gpgsig", NULL };
+		extra = read_commit_extra_headers(current_head, exclude_sig);
 	} else {
 		struct commit_extra_header **tail = &extra;
 		append_merge_tag_headers(parents, &tail);

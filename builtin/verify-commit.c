@@ -21,7 +21,7 @@ static const char * const verify_commit_usage[] = {
 		NULL
 };
 
-static int run_gpg_verify(struct commit *commit, unsigned flags)
+static int run_sig_verify(struct commit *commit, unsigned flags)
 {
 	struct signature signature_check;
 	int ret;
@@ -50,7 +50,7 @@ static int verify_commit(const char *name, unsigned flags)
 		return error("%s: cannot verify a non-commit object of type %s.",
 				name, type_name(obj->type));
 
-	return run_gpg_verify((struct commit *)obj, flags);
+	return run_sig_verify((struct commit *)obj, flags);
 }
 
 static int git_verify_commit_config(const char *var, const char *value, void *cb)
@@ -67,7 +67,7 @@ int cmd_verify_commit(int argc, const char **argv, const char *prefix)
 	unsigned flags = 0;
 	const struct option verify_commit_options[] = {
 		OPT__VERBOSE(&verbose, N_("print commit contents")),
-		OPT_BIT(0, "raw", &flags, N_("print raw gpg status output"), OUTPUT_RAW),
+		OPT_BIT(0, "raw", &flags, N_("print raw sig status output"), OUTPUT_RAW),
 		OPT_END()
 	};
 
@@ -82,7 +82,7 @@ int cmd_verify_commit(int argc, const char **argv, const char *prefix)
 		flags |= OUTPUT_VERBOSE;
 
 	/* sometimes the program was terminated because this signal
-	 * was received in the process of writing the gpg input: */
+	 * was received in the process of writing the sig input: */
 	signal(SIGPIPE, SIG_IGN);
 	while (i < argc)
 		if (verify_commit(argv[i++], flags))

@@ -46,7 +46,7 @@ struct replay_opts {
 
 	int mainline;
 
-	char *gpg_sign;
+	char *sign;
 	enum commit_msg_cleanup_mode default_msg_cleanup;
 	int explicit_cleanup;
 
