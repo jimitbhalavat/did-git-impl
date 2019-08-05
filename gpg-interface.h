@@ -1,6 +1,7 @@
 #ifndef GPG_INTERFACE_H
 #define GPG_INTERFACE_H
 
+#if 0
 struct strbuf;
 
 #define GPG_VERIFY_VERBOSE		1
@@ -63,5 +64,7 @@ int check_signature(const char *payload, size_t plen,
 		    struct signature_check *sigc);
 void print_signature_buffer(const struct signature_check *sigc,
 			    unsigned flags);
+
+#endif
 
 #endif

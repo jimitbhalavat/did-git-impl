@@ -5,7 +5,7 @@
 #include "tree.h"
 #include "strbuf.h"
 #include "decorate.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 #include "string-list.h"
 #include "pretty.h"
 #include "commit-slab.h"
@@ -370,7 +370,7 @@ int remove_signature(struct strbuf *buf);
  * at all.  This may allocate memory for sig->gpg_output, sig->gpg_status,
  * sig->signer and sig->key.
  */
-int check_commit_signature(const struct commit *commit, struct signature_check *sigc);
+int check_commit_signature(const struct commit *commit, struct signature *sigc);
 
 /* record author-date for each commit object */
 struct author_date_slab;

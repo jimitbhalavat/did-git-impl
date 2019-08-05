@@ -6,6 +6,7 @@
 #include "sigchain.h"
 #include "tempfile.h"
 
+#if 0
 static char *configured_signing_key;
 struct gpg_format {
 	const char *name;
@@ -289,7 +290,7 @@ const char *get_signing_key(void)
 }
 
 int sign_buffer(struct strbuf *buffer, struct strbuf *signature, const char *signing_key)
-{
+{	
 	struct child_process gpg = CHILD_PROCESS_INIT;
 	int ret;
 	size_t i, j, bottom;
@@ -376,3 +377,5 @@ int verify_signed_buffer(const char *payload, size_t payload_size,
 
 	return ret;
 }
+
+#endif

@@ -31,7 +31,7 @@
 #include "resolve-undo.h"
 #include "remote.h"
 #include "fmt-merge-msg.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 #include "sequencer.h"
 #include "string-list.h"
 #include "packfile.h"
@@ -636,7 +636,7 @@ static int git_merge_config(const char *k, const char *v, void *cb)
 	status = fmt_merge_msg_config(k, v, cb);
 	if (status)
 		return status;
-	status = git_gpg_config(k, v, NULL);
+	status = git_signing_config(k, v, NULL);
 	if (status)
 		return status;
 	return git_diff_ui_config(k, v, cb);

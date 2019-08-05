@@ -12,7 +12,7 @@
 #include "transport.h"
 #include "version.h"
 #include "sha1-array.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 #include "gettext.h"
 #include "protocol.h"
 
@@ -101,7 +101,7 @@ static void print_helper_status(struct ref *ref)
 
 static int send_pack_config(const char *k, const char *v, void *cb)
 {
-	git_gpg_config(k, v, NULL);
+	git_signing_config(k, v, NULL);
 
 	if (!strcmp(k, "push.gpgsign")) {
 		const char *value;

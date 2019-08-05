@@ -11,7 +11,7 @@
 #include "refs.h"
 #include "string-list.h"
 #include "color.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 #include "sequencer.h"
 #include "line-log.h"
 #include "help.h"

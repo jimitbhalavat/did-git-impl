@@ -14,7 +14,7 @@
 #include "run-command.h"
 #include <signal.h>
 #include "parse-options.h"
-#include "gpg-interface.h"
+#include "signing-interface.h"
 
 static const char * const verify_commit_usage[] = {
 		N_("git verify-commit [-v | --verbose] <commit>..."),
@@ -23,7 +23,7 @@ static const char * const verify_commit_usage[] = {
 
 static int run_gpg_verify(struct commit *commit, unsigned flags)
 {
-	struct signature_check signature_check;
+	struct signature signature_check;
 	int ret;
 
 	memset(&signature_check, 0, sizeof(signature_check));
@@ -31,7 +31,7 @@ static int run_gpg_verify(struct commit *commit, unsigned flags)
 	ret = check_commit_signature(commit, &signature_check);
 	print_signature_buffer(&signature_check, flags);
 
-	signature_check_clear(&signature_check);
+	signature_clear(&signature_check);
 	return ret;
 }
 
@@ -55,7 +55,7 @@ static int verify_commit(const char *name, unsigned flags)
 
 static int git_verify_commit_config(const char *var, const char *value, void *cb)
 {
-	int status = git_gpg_config(var, value, cb);
+	int status = git_signing_config(var, value, cb);
 	if (status)
 		return status;
 	return git_default_config(var, value, cb);
@@ -67,7 +67,7 @@ int cmd_verify_commit(int argc, const char **argv, const char *prefix)
 	unsigned flags = 0;
 	const struct option verify_commit_options[] = {
 		OPT__VERBOSE(&verbose, N_("print commit contents")),
-		OPT_BIT(0, "raw", &flags, N_("print raw gpg status output"), GPG_VERIFY_RAW),
+		OPT_BIT(0, "raw", &flags, N_("print raw gpg status output"), OUTPUT_RAW),
 		OPT_END()
 	};
 
@@ -79,7 +79,7 @@ int cmd_verify_commit(int argc, const char **argv, const char *prefix)
 		usage_with_options(verify_commit_usage, verify_commit_options);
 
 	if (verbose)
-		flags |= GPG_VERIFY_VERBOSE;
+		flags |= OUTPUT_VERBOSE;
 
 	/* sometimes the program was terminated because this signal
 	 * was received in the process of writing the gpg input: */

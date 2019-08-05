@@ -14,6 +14,7 @@
 #include "submodule-config.h"
 #include "send-pack.h"
 #include "color.h"
+#include "signing-interface.h"
 
 static const char * const push_usage[] = {
 	N_("git push [<options>] [<repository> [<refspec>...]]"),
@@ -479,7 +480,7 @@ static int git_push_config(const char *k, const char *v, void *cb)
 	int *flags = cb;
 	int status;
 
-	status = git_gpg_config(k, v, NULL);
+	status = git_signing_config(k, v, NULL);
 	if (status)
 		return status;
 
