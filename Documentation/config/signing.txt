@@ -4,7 +4,7 @@ signing.default::
 	The default value is "openpgp".
 +
 The default executable to run for "openpgp" is "`gpg`", for "x509" is
-"`gpgsm`", and for "bettersign" is "`bs`".
+"`gpgsm`".
 +
 The "bettersign" tool can be found here:
 https://github.com/dhuseby/bs
