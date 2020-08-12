@@ -5,9 +5,6 @@ The default signing format to use when signing commits and tags.
 +
 The default executable to run for "openpgp" is "`gpg`", for "x509" is
 "`gpgsm`".
-+
-The "bettersign" tool can be found here:
-https://github.com/dhuseby/bs
 
 signing.openpgp.program::
 	Use this custom program instead of "`gpg`" found on `$PATH` when
@@ -49,15 +46,3 @@ signing.x509.signingIdentity::
 	commit, you may override the default selection with this variable.
 	This option is passed unchanged as the `--local-user` parameter, so
 	you may specify a key using any method that "`gpgsm`" supports.
-
-signing.bettersign.program::
-	Use this custom program instead of "`bs`" found on `$PATH` when making
-	or verifying a bettersign signature.
-
-signing.bettersign.signingIdentity::
-	If linkgit:git-tag[1] or linkgit:git-commit[1] is not selecting
-	automatically the identity you want when creating a signed tag or
-	commit, you may override the default selection with this variable.
-	This option is passed unchanged as the the decentralized identifier
-	(DID) parameter to the "`bs`" executable. This must be a valid
-	decentralized identifier, most likely starting with "did:git".
