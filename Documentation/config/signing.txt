@@ -1,6 +1,6 @@
 signing.default::
-	The default signing format to use when signing commits and tags.
-	The value must be one of: "openpgp", "x509", or "bettersign".
+The default signing format to use when signing commits and tags.
+	The value must be one of: "openpgp", "x509".
 	The default value is "openpgp".
 +
 The default executable to run for "openpgp" is "`gpg`", for "x509" is
